@@ -100,7 +100,8 @@ window.createHandyRoom = function() {
 
 // Lokales Spiel Raum erstellen
 window.createRoom = function() {
-  playerName = $('#playerName').value.trim() || "Gast";
+  const nameInput = document.getElementById('playerName');
+  playerName = nameInput ? nameInput.value.trim() || "Gast" : "Gast";
   
   if (!playerName) {
     alert('Bitte gib einen Namen ein!');
@@ -123,8 +124,11 @@ window.createRoom = function() {
 
 // Raum beitreten
 window.joinRoom = function() {
-  playerName = $('#playerName').value.trim() || "Gast";
-  const code = $('#joinCode').value.trim().toUpperCase();
+  const nameInput = document.getElementById('playerName');
+  const codeInput = document.getElementById('joinCode');
+  
+  playerName = nameInput ? nameInput.value.trim() || "Gast" : "Gast";
+  const code = codeInput ? codeInput.value.trim().toUpperCase() : "";
   
   if (!playerName) {
     alert('Bitte gib einen Namen ein!');
@@ -169,8 +173,11 @@ socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers }) => {
   // Start-Button nur für Host anzeigen (nicht im Handy-Modus)
   if (gameMode !== 'handy') {
     const minPlayers = 3;
-    $('startGame').style.display = isHost && players.length >= minPlayers ? 'block' : 'none';
-    $('startGame').disabled = players.length < minPlayers;
+    const startGameBtn = $('startGame');
+    if (startGameBtn) {
+      startGameBtn.style.display = isHost && players.length >= minPlayers ? 'block' : 'none';
+      startGameBtn.disabled = players.length < minPlayers;
+    }
     
     if (players.length < minPlayers) {
       $('loading').classList.remove('hidden');
@@ -179,13 +186,6 @@ socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers }) => {
     }
   }
 });
-
-// Spiel starten
-$('startGame').onclick = () => {
-  if (currentRoom) {
-    socket.emit('startGame', { code: currentRoom });
-  }
-};
 
 // Spiel gestartet
 socket.on('gameStarted', ({ players, roundStarted }) => {
@@ -318,6 +318,49 @@ window.nextRound = function() {
 socket.on('connect', () => {
   myId = socket.id;
   console.log('Verbunden mit ID:', myId);
+});
+
+// Event-Listener für Buttons registrieren
+document.addEventListener('DOMContentLoaded', function() {
+  // Start-Button
+  const startGameBtn = document.getElementById('startGame');
+  if (startGameBtn) {
+    startGameBtn.addEventListener('click', function() {
+      if (currentRoom) {
+        socket.emit('startGame', { code: currentRoom });
+      }
+    });
+  }
+
+  // Create Room Button für lokales Spiel
+  const createRoomBtn = document.getElementById('createRoom');
+  if (createRoomBtn) {
+    createRoomBtn.addEventListener('click', createRoom);
+  }
+
+  // Join Room Button
+  const joinRoomBtn = document.getElementById('joinRoom');
+  if (joinRoomBtn) {
+    joinRoomBtn.addEventListener('click', joinRoom);
+  }
+
+  // Continue Button
+  const continueBtn = document.getElementById('continueBtn');
+  if (continueBtn) {
+    continueBtn.addEventListener('click', showNameInput);
+  }
+
+  // Create Handy Room Button
+  const createHandyRoomBtn = document.querySelector('button[onclick="createHandyRoom()"]');
+  if (createHandyRoomBtn) {
+    createHandyRoomBtn.addEventListener('click', createHandyRoom);
+  }
+
+  // Back Buttons
+  const backButtons = document.querySelectorAll('button[onclick*="showStartScreen"]');
+  backButtons.forEach(btn => {
+    btn.addEventListener('click', showStartScreen);
+  });
 });
 
 // Verhindere ungewollte Textauswahl
