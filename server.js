@@ -25,7 +25,7 @@ const WORD_PAIRS = [
   ["Lampe", "Licht"],
   ["Brot", "Nahrung"],
   ["Meer", "Wasser"],
-  ["Garten", "Pflanzen"],
+  ["Garden", "Pflanzen"],
   ["Kino", "Unterhaltung"],
   ["Buch", "Lesen"],
   ["Musik", "Kunst"],
@@ -84,9 +84,12 @@ class BotPlayer {
   }
 
   generateHint(role, word) {
+    // Sicherstellen, dass word definiert ist
+    const safeWord = word || "Unbekannt";
+    
     if (role === "imposter") {
       const hints = [
-        `Ich denke an etwas, das mit "${word[0]}" beginnt...`,
+        `Ich denke an etwas, das mit "${safeWord[0]}" beginnt...`,
         "Das Wort hat etwas mit unserem Thema zu tun",
         "Es ist ein alltäglicher Begriff",
         "Das klingt ähnlich wie etwas anderes",
@@ -96,11 +99,11 @@ class BotPlayer {
     } else {
       // Crew-Bot gibt bessere Hinweise
       const hints = [
-        `Mein Wort hat ${word.length} Buchstaben`,
-        `Es beginnt mit "${word[0]}"`,
+        `Mein Wort hat ${safeWord.length} Buchstaben`,
+        `Es beginnt mit "${safeWord[0]}"`,
         "Das ist ein Begriff aus dem Alltag",
         "Jeder kennt dieses Wort",
-        `Es endet mit "${word[word.length-1]}"`
+        `Es endet mit "${safeWord[safeWord.length-1]}"`
       ];
       return hints[Math.floor(Math.random() * hints.length)];
     }
@@ -108,6 +111,7 @@ class BotPlayer {
 
   vote(players, ownRole, imposterId) {
     const otherPlayers = players.filter(p => p.id !== this.id);
+    if (otherPlayers.length === 0) return null;
     
     if (ownRole === "imposter") {
       // Imposter-Bot wählt zufälligen Crew-Spieler
@@ -128,6 +132,8 @@ class BotPlayer {
 
 // Socket.IO
 io.on("connection", (socket) => {
+  console.log('Neue Verbindung:', socket.id);
+
   // Raum erstellen mit Spielmodus-Auswahl
   socket.on("createRoom", ({ name, gameMode, botCount = 0 }, cb) => {
     const code = makeRoomCode();
@@ -144,12 +150,14 @@ io.on("connection", (socket) => {
       timer: null,
       votes: new Map(),
       imposterId: null,
-      roundActive: false
+      roundActive: false,
+      crewWord: null,
+      imposterWord: null
     });
 
     // Host hinzufügen
     rooms.get(code).players.set(socket.id, { 
-      name, 
+      name: name || "Gast", 
       role: "host", 
       isBot: false, 
       id: socket.id 
@@ -176,6 +184,7 @@ io.on("connection", (socket) => {
       }
     }
 
+    console.log(`Raum ${code} erstellt von ${name}, Spieler: ${Array.from(rooms.get(code).players.values()).map(p => p.name).join(', ')}`);
     cb?.({ code });
     io.to(code).emit("lobbyUpdate", publicState(code));
   });
@@ -189,12 +198,13 @@ io.on("connection", (socket) => {
     if (room.players.size >= room.maxPlayers) return cb?.({ error: `Maximal ${room.maxPlayers} Spieler erlaubt.` });
 
     room.players.set(socket.id, { 
-      name, 
+      name: name || "Gast", 
       role: "crew", 
       isBot: false, 
       id: socket.id 
     });
     socket.join(code);
+    console.log(`Spieler ${name} hat Raum ${code} betreten`);
     cb?.({ ok: true });
     io.to(code).emit("lobbyUpdate", publicState(code));
   });
@@ -212,6 +222,8 @@ io.on("connection", (socket) => {
     room.started = true;
     room.votes.clear();
     
+    console.log(`Spiel startet in Raum ${code} mit ${room.players.size} Spielern`);
+    
     // Countdown vor Spielstart
     io.to(code).emit("countdownStart", { duration: 5 });
     
@@ -225,6 +237,9 @@ io.on("connection", (socket) => {
     if (!room) return;
 
     const [crewWord, imposterWord] = pickWordPair();
+    room.crewWord = crewWord;
+    room.imposterWord = imposterWord;
+    
     const allPlayers = Array.from(room.players.values());
     const playerIds = allPlayers.map(p => p.id);
     
@@ -233,10 +248,13 @@ io.on("connection", (socket) => {
     room.votes.clear();
     room.roundActive = true;
 
+    console.log(`Neue Runde in Raum ${code}, Imposter: ${room.players.get(room.imposterId)?.name}`);
+
     // Rollen verteilen
     for (const [id, player] of room.players) {
       const isImposter = id === room.imposterId;
       player.role = isImposter ? "imposter" : "crew";
+      player.word = isImposter ? imposterWord : crewWord;
       
       io.to(id).emit("yourRole", {
         role: isImposter ? "Imposter" : "Crew",
@@ -285,6 +303,8 @@ io.on("connection", (socket) => {
 
     // Timer starten
     let timeLeft = 25;
+    if (room.timer) clearInterval(room.timer);
+    
     room.timer = setInterval(() => {
       timeLeft--;
       io.to(code).emit("timerUpdate", { timeLeft });
@@ -296,8 +316,9 @@ io.on("connection", (socket) => {
         if (currentPlayer.isBot && currentPlayer.botInstance) {
           const hint = currentPlayer.botInstance.generateHint(
             currentPlayer.role, 
-            currentPlayer.role === "imposter" ? room.players.get(room.imposterId).word : currentPlayer.word
+            currentPlayer.word
           );
+          console.log(`Bot ${currentPlayer.name} gibt Hinweis: ${hint}`);
           io.to(code).emit("hint", { 
             from: currentPlayer.name, 
             text: hint, 
@@ -317,10 +338,10 @@ io.on("connection", (socket) => {
     if (!room) return;
 
     room.roundActive = false;
-    clearInterval(room.timer);
+    if (room.timer) clearInterval(room.timer);
 
     io.to(code).emit("votingStarted", {
-      players: publicPlayers(code).filter(p => p.id !== room.imposterId || room.players.get(p.id)?.role === "imposter")
+      players: publicPlayers(code)
     });
 
     // Bots stimmen automatisch ab
@@ -329,13 +350,15 @@ io.on("connection", (socket) => {
         for (const [id, player] of room.players) {
           if (player.isBot && player.botInstance) {
             const vote = player.botInstance.vote(publicPlayers(code), player.role, room.imposterId);
-            room.votes.set(id, vote);
-            io.to(code).emit("voteCast", { 
-              from: player.name, 
-              targetId: vote,
-              targetName: room.players.get(vote)?.name || "Unbekannt",
-              isBot: true 
-            });
+            if (vote) {
+              room.votes.set(id, vote);
+              io.to(code).emit("voteCast", { 
+                from: player.name, 
+                targetId: vote,
+                targetName: room.players.get(vote)?.name || "Unbekannt",
+                isBot: true 
+              });
+            }
           }
         }
         
@@ -368,6 +391,8 @@ io.on("connection", (socket) => {
 
     const isImposterEjected = ejectedPlayerId === room.imposterId;
     const ejectedPlayer = room.players.get(ejectedPlayerId);
+
+    console.log(`Spielende in Raum ${code}, Imposter enttarnt: ${isImposterEjected}`);
 
     // Ergebnis senden
     io.to(code).emit("gameEnded", {
@@ -409,6 +434,8 @@ io.on("connection", (socket) => {
     const minPlayers = room.gameMode === "ki-bot" ? 1 : 3;
     if (room.players.size < minPlayers) return io.to(socket.id).emit("errorMsg", `Mindestens ${minPlayers} Spieler nötig!`);
 
+    console.log(`Nächste Runde in Raum ${code}`);
+    
     // Countdown für nächste Runde
     io.to(code).emit("countdownStart", { duration: 5 });
     
@@ -422,19 +449,31 @@ io.on("connection", (socket) => {
   socket.on("leaveGame", ({ code }) => {
     const room = rooms.get(code);
     if (room) {
+      const playerName = room.players.get(socket.id)?.name;
       room.players.delete(socket.id);
-      io.to(code).emit("playerLeft", { playerId: socket.id });
+      console.log(`Spieler ${playerName} hat Raum ${code} verlassen`);
+      io.to(code).emit("playerLeft", { playerId: socket.id, playerName });
       socket.leave(code);
+      
+      // Raum löschen wenn leer
+      if (room.players.size === 0) {
+        rooms.delete(code);
+        console.log(`Raum ${code} gelöscht (leer)`);
+      }
     }
   });
 
   // Disconnect
   socket.on("disconnect", () => {
+    console.log('Verbindung getrennt:', socket.id);
     for (const [code, room] of rooms) {
       if (room.players.delete(socket.id)) {
+        const playerName = room.players.get(socket.id)?.name;
+        console.log(`Spieler ${playerName} disconnected von Raum ${code}`);
         io.to(code).emit("lobbyUpdate", publicState(code));
         if (room.players.size === 0) {
           rooms.delete(code);
+          console.log(`Raum ${code} gelöscht (leer)`);
         }
         break;
       }
