@@ -28,7 +28,7 @@ const WORD_PAIRS = [
   ["Nachhaltigkeit", "Konsumgesellschaft"],
   ["Artificial Intelligence", "Machine Learning"],
   ["Blockchain", "Kryptowährung"],
-  ["Neuroplastizität", Synapsen"],
+  ["Neuroplastizität", "Synapsen"],
   ["Ökosystem", "Biom"],
   ["Renaissance", "Aufklärung"],
   ["Mikroprozessor", "Integrierter Schaltkreis"],
