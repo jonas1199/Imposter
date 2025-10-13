@@ -55,7 +55,8 @@ function publicPlayers(code) {
   return Array.from(room.players.values()).map(p => ({ 
     name: p.name, 
     id: p.id,
-    isHost: p.role === "host"
+    isHost: p.role === "host",
+    hasSeenRole: p.hasSeenRole || false
   }));
 }
 
@@ -78,7 +79,7 @@ io.on("connection", (socket) => {
   // Raum erstellen
   socket.on("createRoom", ({ name, gameMode, playerNames = [] }, cb) => {
     const code = makeRoomCode();
-    const maxPlayers = 8;
+    const maxPlayers = gameMode === "handy" ? 8 : 8;
     
     rooms.set(code, { 
       players: new Map(), 
@@ -104,7 +105,8 @@ io.on("connection", (socket) => {
         room.players.set(playerId, { 
           name: playerName, 
           role: "crew", 
-          id: playerId
+          id: playerId,
+          hasSeenRole: false
         });
       });
       // Ersten Spieler als Host markieren
@@ -116,12 +118,13 @@ io.on("connection", (socket) => {
       room.players.set(socket.id, { 
         name: name || "Gast", 
         role: "host", 
-        id: socket.id
+        id: socket.id,
+        hasSeenRole: false
       });
     }
 
     socket.join(code);
-    console.log(`Raum ${code} erstellt, Modus: ${gameMode}, Spieler: ${Array.from(room.players.values()).map(p => p.name).join(', ')}`);
+    console.log(`Raum ${code} erstellt, Modus: ${gameMode}`);
     cb?.({ code });
     io.to(code).emit("lobbyUpdate", publicState(code));
   });
@@ -137,7 +140,8 @@ io.on("connection", (socket) => {
     room.players.set(socket.id, { 
       name: name || "Gast", 
       role: "crew", 
-      id: socket.id
+      id: socket.id,
+      hasSeenRole: false
     });
     socket.join(code);
     console.log(`Spieler ${name} hat Raum ${code} betreten`);
@@ -156,20 +160,11 @@ io.on("connection", (socket) => {
     
     room.started = true;
     room.votes.clear();
+    room.currentPlayerIndex = 0;
     
     console.log(`Spiel startet in Raum ${code}, Modus: ${room.gameMode}`);
     
-    // Countdown für alle Modi außer Handy
-    if (room.gameMode !== "handy") {
-      io.to(code).emit("countdownStart", { duration: 5 });
-      
-      setTimeout(() => {
-        startNewRound(code);
-      }, 5000);
-    } else {
-      // Handy-Modus startet sofort
-      startNewRound(code);
-    }
+    startNewRound(code);
   });
 
   function startNewRound(code) {
@@ -188,12 +183,18 @@ io.on("connection", (socket) => {
     room.votes.clear();
     room.roundActive = true;
 
+    // Reset hasSeenRole für alle Spieler
+    for (const player of allPlayers) {
+      player.hasSeenRole = false;
+    }
+
     console.log(`Neue Runde in Raum ${code}, Imposter: ${room.players.get(room.imposterId)?.name}`);
 
     // Rollen verteilen
     for (const [id, player] of room.players) {
       const isImposter = id === room.imposterId;
       player.role = isImposter ? "imposter" : "crew";
+      player.word = isImposter ? imposterWord : crewWord;
     }
 
     io.to(code).emit("gameStarted", { 
@@ -201,37 +202,17 @@ io.on("connection", (socket) => {
       roundStarted: true 
     });
 
-    // Für Handy-Modus: Speziellen Ablauf starten
+    // Für Handy-Modus: Ersten Spieler anzeigen
     if (room.gameMode === "handy") {
-      startHandyGameRound(code);
-    } else {
-      // Für lokales Spiel: Rollen sofort an alle senden
-      for (const [id, player] of room.players) {
-        const isImposter = id === room.imposterId;
-        io.to(id).emit("yourRole", {
-          role: isImposter ? "Imposter" : "Crew",
-          word: isImposter ? imposterWord : crewWord,
-          note: isImposter ? "(Du bist der Imposter – du siehst nur den Tipp!)" : "(Du bist in der Crew.)",
-          isHost: id === room.hostId
-        });
-      }
+      showNextPlayer(code);
     }
   }
 
-  function startHandyGameRound(code) {
-    const room = rooms.get(code);
-    if (!room) return;
-
-    // Handy-Modus: Spieler sehen nacheinander ihre Rollen
-    showNextPlayerRole(code);
-  }
-
-  function showNextPlayerRole(code) {
+  function showNextPlayer(code) {
     const room = rooms.get(code);
     if (!room) return;
 
     const allPlayers = Array.from(room.players.values());
-    
     if (room.currentPlayerIndex >= allPlayers.length) {
       // Alle Spieler haben ihre Rolle gesehen -> Spielphase starten
       startGamePhase(code);
@@ -239,14 +220,13 @@ io.on("connection", (socket) => {
     }
 
     const currentPlayer = allPlayers[room.currentPlayerIndex];
-    const isImposter = currentPlayer.id === room.imposterId;
+    currentPlayer.hasSeenRole = true;
 
-    // Rolle an alle senden (da alle auf einem Gerät spielen)
     io.to(code).emit("showPlayerRole", {
       player: currentPlayer,
-      role: isImposter ? "Imposter" : "Crew",
-      word: isImposter ? room.imposterWord : room.crewWord,
-      note: isImposter ? "(Du bist der Imposter – du siehst nur den Tipp!)" : "(Du bist in der Crew.)",
+      role: currentPlayer.role,
+      word: currentPlayer.word,
+      note: currentPlayer.role === "imposter" ? "(Du bist der Imposter – du siehst nur den Tipp!)" : "(Du bist in der Crew.)",
       currentIndex: room.currentPlayerIndex,
       totalPlayers: allPlayers.length
     });
@@ -257,18 +237,10 @@ io.on("connection", (socket) => {
     if (!room) return;
 
     room.roundActive = true;
-    console.log(`Spielphase gestartet in Raum ${code}`);
-    
-    // Für Handy-Modus: Alle Rollen nochmal anzeigen lassen
-    for (const [id, player] of room.players) {
-      const isImposter = id === room.imposterId;
-      io.to(id).emit("yourRole", {
-        role: isImposter ? "Imposter" : "Crew",
-        word: isImposter ? room.imposterWord : room.crewWord,
-        note: isImposter ? "(Du bist der Imposter – du siehst nur den Tipp!)" : "(Du bist in der Crew.)",
-        isHost: id === room.hostId
-      });
-    }
+    io.to(code).emit("gamePhaseStarted", {
+      players: publicPlayers(code),
+      imposter: room.players.get(room.imposterId)?.name
+    });
   }
 
   // Nächster Spieler (für Handy-Modus)
@@ -277,49 +249,15 @@ io.on("connection", (socket) => {
     if (!room || room.gameMode !== "handy") return;
 
     room.currentPlayerIndex++;
-    showNextPlayerRole(code);
+    showNextPlayer(code);
   });
 
-  // Eigene Rolle anfordern
-  socket.on("getMyRole", ({ code }) => {
+  // Spieler hat Rolle gesehen (für Handy-Modus)
+  socket.on("playerSawRole", ({ code, playerId }) => {
     const room = rooms.get(code);
-    if (!room) return;
-    
-    const player = room.players.get(socket.id);
-    if (player && room.started) {
-      const isImposter = socket.id === room.imposterId;
-      io.to(socket.id).emit("yourRole", {
-        role: isImposter ? "Imposter" : "Crew",
-        word: isImposter ? room.imposterWord : room.crewWord,
-        note: isImposter ? "(Du bist der Imposter – du siehst nur den Tipp!)" : "(Du bist in der Crew.)",
-        isHost: socket.id === room.hostId
-      });
-    }
-  });
-
-  // Nächste Runde
-  socket.on("nextRound", ({ code }) => {
-    const room = rooms.get(code);
-    if (!room) return;
-    if (socket.id !== room.hostId) return io.to(socket.id).emit("errorMsg", "Nur der Admin kann die nächste Runde starten.");
-
-    const minPlayers = room.gameMode === "handy" ? 2 : 3;
-    if (room.players.size < minPlayers) return io.to(socket.id).emit("errorMsg", `Mindestens ${minPlayers} Spieler nötig!`);
-
-    console.log(`Nächste Runde in Raum ${code}`);
-    
-    // Countdown für nächste Runde (nur lokales Spiel)
-    if (room.gameMode !== "handy") {
-      io.to(code).emit("countdownStart", { duration: 5 });
-      
-      setTimeout(() => {
-        startNewRound(code);
-        io.to(code).emit("roundRestarted");
-      }, 5000);
-    } else {
-      // Handy-Modus startet sofort
-      startNewRound(code);
-      io.to(code).emit("roundRestarted");
+    if (room && room.players.has(playerId)) {
+      room.players.get(playerId).hasSeenRole = true;
+      io.to(code).emit("lobbyUpdate", publicState(code));
     }
   });
 
