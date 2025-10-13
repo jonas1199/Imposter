@@ -7,35 +7,92 @@
   <style>
     body { font-family: system-ui, sans-serif; margin: 16px; max-width: 700px; }
     .card { border: 1px solid #ddd; border-radius: 12px; padding: 12px; margin: 8px 0; }
-    input, button { font-size: 16px; padding: 10px; border-radius: 10px; border: 1px solid #ccc; }
+    input, button, select { font-size: 16px; padding: 10px; border-radius: 10px; border: 1px solid #ccc; margin: 4px; }
     button { cursor: pointer; background: #008cff; color: white; border: none; }
+    button.secondary { background: #6c757d; }
     h1 { color: #333; }
     ul { list-style: none; padding: 0; }
+    .player-list li { padding: 8px; border-bottom: 1px solid #eee; }
+    .bot { color: #666; font-style: italic; }
+    .mode-select { display: flex; gap: 10px; margin: 10px 0; }
+    .mode-option { flex: 1; text-align: center; padding: 15px; border: 2px solid #ddd; border-radius: 10px; cursor: pointer; }
+    .mode-option.selected { border-color: #008cff; background: #f0f8ff; }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
   <h1>Imposter – Das Wortspiel 🎭</h1>
 
-  <div id="auth" class="card">
-    <input id="name" placeholder="Dein Name" />
-    <button id="create">Raum erstellen</button>
-    <br><br>
-    <input id="code" placeholder="Raumcode" />
-    <button id="join">Beitreten</button>
+  <!-- Startbildschirm -->
+  <div id="start" class="card">
+    <h2>Spielmodus auswählen</h2>
+    <div class="mode-select">
+      <div class="mode-option" onclick="selectMode('ki-bot')">
+        <h3>🤖 Mit KI Bot</h3>
+        <p>Spiele alleine oder zu zweit mit KI-Spielern</p>
+      </div>
+      <div class="mode-option" onclick="selectMode('offline')">
+        <h3>👥 Mit einer Gruppe</h3>
+        <p>3-8 Spieler offline am gleichen Gerät</p>
+      </div>
+    </div>
+
+    <!-- KI-Bot Einstellungen -->
+    <div id="ki-bot-settings" class="hidden">
+      <h3>KI-Bot Einstellungen</h3>
+      <label>Anzahl KI-Bots:</label>
+      <select id="botCount">
+        <option value="1">1 Bot</option>
+        <option value="2">2 Bots</option>
+        <option value="3">3 Bots</option>
+        <option value="4">4 Bots</option>
+      </select>
+    </div>
+
+    <!-- Spielername -->
+    <div style="margin-top: 20px;">
+      <input id="name" placeholder="Dein Name" />
+      <button id="createRoom">Raum erstellen</button>
+    </div>
   </div>
 
-  <div id="lobby" class="card" style="display:none">
-    <div>Raum: <b id="roomCode"></b></div>
-    <ul id="players"></ul>
-    <button id="start">Spiel starten</button>
+  <!-- Offline-Beitritt (nur für Gruppenmodus) -->
+  <div id="join-offline" class="card hidden">
+    <h2>Gruppe beitreten</h2>
+    <input id="name-offline" placeholder="Dein Name" />
+    <input id="code-offline" placeholder="Raumcode" />
+    <button id="joinRoom">Beitreten</button>
+    <button class="secondary" onclick="showStartScreen()">← Zurück</button>
   </div>
 
-  <div id="game" class="card" style="display:none">
+  <!-- Lobby -->
+  <div id="lobby" class="card hidden">
+    <div>Raum: <b id="roomCode"></b> | Modus: <span id="gameMode"></span></div>
+    <div>Spieler (<span id="playerCount">0</span>/<span id="maxPlayers">8</span>):</div>
+    <ul id="players" class="player-list"></ul>
+    <button id="startGame">Spiel starten</button>
+    <button class="secondary" onclick="leaveRoom()">Raum verlassen</button>
+  </div>
+
+  <!-- Spiel -->
+  <div id="game" class="card hidden">
     <div><b>Deine Rolle:</b> <span id="role">?</span></div>
     <div><b>Dein Wort / Tipp:</b> <span id="word">?</span></div>
     <p id="note"></p>
-    <!-- Nur der Admin sieht diesen Button -->
-    <button id="next" style="display:none; margin-top:12px">Nächste Runde starten</button>
+    
+    <!-- Chat/Hinweise Bereich -->
+    <div id="chat" style="margin-top: 20px; max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 8px;">
+      <div id="messages"></div>
+    </div>
+    
+    <!-- Hinweis eingeben -->
+    <div style="margin-top: 10px;">
+      <input id="hintInput" placeholder="Dein Hinweis..." style="width: 70%;" />
+      <button onclick="submitHint()">Hinweis senden</button>
+    </div>
+
+    <!-- Admin-Button -->
+    <button id="nextRound" class="hidden" style="margin-top:12px">Nächste Runde starten</button>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
