@@ -603,4 +603,101 @@
     </div>
 
     <!-- Lobby -->
-    <
+    <div id="lobby" class="card hidden">
+      <h2>Lobby</h2>
+      <div class="game-info">
+        <strong>Raum:</strong> <span id="roomCode"></span> | 
+        <strong>Modus:</strong> <span id="gameMode"></span>
+        <span id="loading" class="loading-dots hidden">Warte auf Spieler</span>
+      </div>
+      
+      <div>Spieler (<span id="playerCount">0</span>/<span id="maxPlayers">8</span>):</div>
+      <ul id="players" class="player-list"></ul>
+      
+      <button id="startGame">Spiel starten</button>
+      <button class="danger" onclick="showConfirmation()">❌ Raum verlassen</button>
+    </div>
+
+    <!-- Spielbereich -->
+    <div id="game" class="card hidden">
+      <button class="danger" onclick="showConfirmation()" style="margin-bottom: 20px;">❌ Spiel verlassen</button>
+      
+      <div class="role-display">
+        <h2>Deine Rolle wird geheim gehalten!</h2>
+        <p>Halte den Bildschirm gedrückt, um deine Rolle und dein Wort zu enthüllen</p>
+        <div class="hold-area" style="padding: 40px; margin: 20px 0; background: #f8f9fa; border-radius: 15px; text-align: center; border: 3px dashed #667eea;">
+          <h3 style="color: #667eea; margin-bottom: 20px;">👆 Hier gedrückt halten</h3>
+          <p style="color: #666; font-size: 0.9em;">Halte deinen Finger/Daumen auf diesem Bereich, um dein Geheimnis zu enthüllen</p>
+        </div>
+      </div>
+
+      <!-- Admin Panel -->
+      <div id="adminPanel" class="admin-panel hidden">
+        <h3>👑 Admin-Bereich</h3>
+        <p>Du bist der Spielleiter und kannst die nächste Runde starten</p>
+        <button onclick="nextRound()" style="margin-top: 10px;">🔄 Nächste Runde starten</button>
+      </div>
+
+      <!-- KI-Bot Modus spezifisch -->
+      <div id="ki-bot-game" class="hidden">
+        <div class="turn-display">
+          <h3 id="currentPlayer">Bereit zum Starten...</h3>
+          <div class="timer" id="timer">25</div>
+        </div>
+        
+        <div class="chat-messages" id="messages"></div>
+      </div>
+
+      <!-- Abstimmungsbereich -->
+      <div id="voting-section" class="hidden">
+        <div class="game-info">
+          <h3>🗳️ Wer ist der Imposter?</h3>
+          <p>Stimme für den Spieler, von dem du denkst, dass er der Imposter ist!</p>
+        </div>
+        <div id="voting-options" class="voting-options"></div>
+      </div>
+
+      <!-- Ergebnisse -->
+      <div id="game-result" class="hidden">
+        <!-- Wird dynamisch gefüllt -->
+      </div>
+
+      <!-- Nächste Runde Button (für Host nach Spielende) -->
+      <button id="nextRound" class="hidden" style="margin-top:20px" onclick="nextRound()">🔄 Nächste Runde starten</button>
+    </div>
+  </div>
+
+  <!-- Countdown Overlay -->
+  <div id="countdown" class="countdown hidden"></div>
+
+  <!-- Secret Reveal Overlay -->
+  <div id="secretReveal" class="secret-reveal">
+    <h2 id="secretRole">Deine Rolle</h2>
+    <div class="secret-word" id="secretWord">Wort</div>
+    <p id="secretNote"></p>
+    <div class="hold-instruction">Halte weiter gedrückt...</div>
+  </div>
+
+  <!-- Bestätigungsdialog -->
+  <div id="confirmationDialog" class="confirmation-dialog hidden">
+    <div class="confirmation-content">
+      <h3 style="color: #dc3545; margin-bottom: 15px;">⚠️ Spiel verlassen?</h3>
+      <p style="margin-bottom: 20px; line-height: 1.5;">
+        Bist du sicher, dass du das Spiel verlassen möchtest?<br>
+        Du kannst später nicht mehr beitreten!
+      </p>
+      <div class="confirmation-buttons">
+        <button class="danger" onclick="confirmLeave()">Ja, verlassen</button>
+        <button class="secondary" onclick="hideConfirmation()">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Imposter Wortspiel © 2024
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/client.js"></script>
+</body>
+</html>
