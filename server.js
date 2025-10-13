@@ -4,7 +4,12 @@ import { Server } from "socket.io";
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 
 app.use(express.static("public"));
 
@@ -25,7 +30,7 @@ const WORD_PAIRS = [
   ["Lampe", "Licht"],
   ["Brot", "Nahrung"],
   ["Meer", "Wasser"],
-  ["Garden", "Pflanzen"],
+  ["Garten", "Pflanzen"],
   ["Kino", "Unterhaltung"],
   ["Buch", "Lesen"],
   ["Musik", "Kunst"],
@@ -467,9 +472,10 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log('Verbindung getrennt:', socket.id);
     for (const [code, room] of rooms) {
-      if (room.players.delete(socket.id)) {
-        const playerName = room.players.get(socket.id)?.name;
-        console.log(`Spieler ${playerName} disconnected von Raum ${code}`);
+      if (room.players.has(socket.id)) {
+        const player = room.players.get(socket.id);
+        console.log(`Spieler ${player?.name} disconnected von Raum ${code}`);
+        room.players.delete(socket.id);
         io.to(code).emit("lobbyUpdate", publicState(code));
         if (room.players.size === 0) {
           rooms.delete(code);
@@ -481,5 +487,9 @@ io.on("connection", (socket) => {
   });
 });
 
+// WICHTIG: Port aus Umgebungsvariable lesen für Render
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log("Server läuft auf Port " + PORT));
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server läuft auf Port ${PORT}`);
+  console.log(`URL: http://0.0.0.0:${PORT}`);
+});
