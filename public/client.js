@@ -4,8 +4,8 @@ const $ = (id) => document.getElementById(id);
 let currentRoom = null;
 let currentGameMode = null;
 let myId = null;
-let secretRevealActive = false;
 let isHost = false;
+let playerName = "";
 
 // Spielmodus auswählen
 window.selectMode = function(mode) {
@@ -20,41 +20,47 @@ window.selectMode = function(mode) {
   selectedOption.classList.add(mode);
   
   $('ki-bot-settings').classList.toggle('hidden', mode !== 'ki-bot');
+  $('continueBtn').classList.remove('hidden');
 };
 
-// Startbildschirm anzeigen
-window.showStartScreen = function() {
-  $('start').classList.remove('hidden');
-  $('lobby').classList.add('hidden');
-  $('game').classList.add('hidden');
-  currentRoom = null;
-  myId = null;
-  isHost = false;
-  
-  // Reset mode selection
-  document.querySelectorAll('.mode-option').forEach(opt => {
-    opt.classList.remove('selected', 'local', 'ki-bot');
-  });
-};
-
-// Raum erstellen
-$('createRoom').onclick = () => {
-  const myName = $('name').value.trim() || "Gast";
-  const botCount = currentGameMode === 'ki-bot' ? parseInt($('botCount').value) : 0;
-  
+// Name Eingabe anzeigen
+window.showNameInput = function() {
   if (!currentGameMode) {
     alert('Bitte wähle zuerst einen Spielmodus aus!');
     return;
   }
+  $('start').classList.add('hidden');
+  $('nameInput').classList.remove('hidden');
+};
+
+// Zurück zum Start
+window.showStartScreen = function() {
+  $('nameInput').classList.add('hidden');
+  $('lobby').classList.add('hidden');
+  $('game').classList.add('hidden');
+  $('start').classList.remove('hidden');
+  currentRoom = null;
+  currentGameMode = null;
+};
+
+// Raum erstellen
+window.createRoom = function() {
+  playerName = $('#playerName').value.trim() || "Gast";
+  const botCount = currentGameMode === 'ki-bot' ? parseInt($('#botCount').value) : 0;
+  
+  if (!playerName) {
+    alert('Bitte gib einen Namen ein!');
+    return;
+  }
   
   socket.emit('createRoom', { 
-    name: myName, 
+    name: playerName, 
     gameMode: currentGameMode,
     botCount: botCount
   }, ({ code }) => {
     currentRoom = code;
     isHost = true;
-    $('start').classList.add('hidden');
+    $('nameInput').classList.add('hidden');
     $('lobby').classList.remove('hidden');
     $('roomCode').textContent = code;
     $('gameMode').textContent = currentGameMode === 'ki-bot' ? 'KI-Bot Modus (BETA)' : 'Lokales Spiel';
@@ -63,23 +69,28 @@ $('createRoom').onclick = () => {
 };
 
 // Raum beitreten
-$('joinRoom').onclick = () => {
-  const myName = $('name').value.trim() || "Gast";
-  const code = $('joinCode').value.trim().toUpperCase();
+window.joinRoom = function() {
+  playerName = $('#playerName').value.trim() || "Gast";
+  const code = $('#joinCode').value.trim().toUpperCase();
+  
+  if (!playerName) {
+    alert('Bitte gib einen Namen ein!');
+    return;
+  }
   
   if (!code) {
     alert('Bitte gib einen Raumbcode ein!');
     return;
   }
   
-  socket.emit('joinRoom', { code, name: myName }, (res) => {
+  socket.emit('joinRoom', { code, name: playerName }, (res) => {
     if (res?.error) {
       alert(res.error);
       return;
     }
     currentRoom = code;
     isHost = false;
-    $('start').classList.add('hidden');
+    $('nameInput').classList.add('hidden');
     $('lobby').classList.remove('hidden');
     $('roomCode').textContent = code;
     $('gameMode').textContent = 'Lokales Spiel';
@@ -95,15 +106,16 @@ socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers }) => {
   $('maxPlayers').textContent = maxPlayers;
   
   $('players').innerHTML = players.map(p => 
-    `<li class="${p.isBot ? 'bot' : ''}">
-      <span class="player-icon">${p.isBot ? '🤖' : '👤'}</span>
-      ${p.name} ${p.isBot ? '(Bot)' : ''} ${p.id === myId ? '(Du)' : ''}
+    `<li class="${p.isBot ? 'bot' : ''} slide-in">
+      <span class="player-icon">${p.isBot ? '🤖' : p.isHost ? '👑' : '👤'}</span>
+      ${p.name} ${p.isBot ? '(Bot)' : ''} ${p.id === myId ? '(Du)' : ''} ${p.isHost ? '- Host' : ''}
     </li>`
   ).join('');
   
-  // Start-Button nur für Host anzeigen und nur bei genug Spielern
+  // Start-Button nur für Host anzeigen
   const minPlayers = gameMode === 'ki-bot' ? 1 : 3;
   $('startGame').style.display = isHost && players.length >= minPlayers ? 'block' : 'none';
+  $('startGame').disabled = players.length < minPlayers;
   
   // Loading indicator
   if (players.length < minPlayers) {
@@ -120,271 +132,84 @@ $('startGame').onclick = () => {
   }
 };
 
-// Countdown vor Spielstart
+// Countdown mit Animation
 socket.on('countdownStart', ({ duration }) => {
   $('lobby').classList.add('hidden');
   $('game').classList.remove('hidden');
   $('countdown').classList.remove('hidden');
   
   let count = duration;
-  $('countdown').textContent = count;
+  const countdownElement = $('countdown');
   
-  const countdownInterval = setInterval(() => {
-    count--;
-    $('countdown').textContent = count;
+  function updateCountdown() {
+    countdownElement.innerHTML = `<div class="countdown-number">${count}</div>`;
     
     if (count <= 0) {
-      clearInterval(countdownInterval);
-      $('countdown').classList.add('hidden');
+      countdownElement.classList.add('hidden');
+      return;
     }
-  }, 1000);
+    
+    count--;
+    setTimeout(updateCountdown, 1000);
+  }
+  
+  updateCountdown();
 });
 
-// Rolle/Wort anzeigen
-socket.on('yourRole', ({ role, word, note, isHost: hostStatus, gameMode, players }) => {
-  isHost = hostStatus;
+// Spieler hat verlassen
+socket.on('playerLeft', ({ playerName, remainingPlayers, newHostId }) => {
+  // Nachricht im Chat anzeigen
+  const message = document.createElement('div');
+  message.className = 'message system player-left-message';
+  message.textContent = `🚪 ${playerName} hat das Spiel verlassen. (${remainingPlayers} Spieler verbleibend)`;
+  $('messages').appendChild(message);
+  $('messages').scrollTop = $('messages').scrollHeight;
   
-  // Secret Reveal vorbereiten
-  $('secretRole').textContent = role;
-  $('secretWord').textContent = word;
-  $('secretNote').textContent = note || '';
-  
-  // Hold-Mechanismus einrichten
-  setupHoldToReveal();
-  
-  // Admin-Panel für Host anzeigen
-  if (isHost) {
+  // Wenn ich neuer Host bin
+  if (newHostId === myId) {
+    isHost = true;
     $('adminPanel').classList.remove('hidden');
-  }
-  
-  // Modus-spezifische Elemente anzeigen
-  if (gameMode === 'ki-bot') {
-    $('ki-bot-game').classList.remove('hidden');
-    $('messages').innerHTML = '<div class="message system">Spiel startet... Bitte warte auf deinen Zug!</div>';
-  } else {
-    $('ki-bot-game').classList.add('hidden');
-  }
-  
-  // Voting-Optionen vorbereichen
-  prepareVotingOptions(players);
-});
-
-// Hold-to-Reveal Mechanismus
-function setupHoldToReveal() {
-  const holdArea = document.querySelector('.hold-area');
-  const secretReveal = $('secretReveal');
-  let holdTimer;
-  let isHolding = false;
-
-  // Touch Events für Mobile
-  holdArea.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    startHold();
-  });
-
-  holdArea.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    endHold();
-  });
-
-  holdArea.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-  });
-
-  // Mouse Events für Desktop
-  holdArea.addEventListener('mousedown', startHold);
-  holdArea.addEventListener('mouseup', endHold);
-  holdArea.addEventListener('mouseleave', endHold);
-
-  function startHold() {
-    if (isHolding) return;
-    isHolding = true;
-    holdArea.style.background = '#e9ecef';
-    holdArea.style.borderColor = '#667eea';
-    
-    holdTimer = setTimeout(() => {
-      secretReveal.classList.add('active');
-      secretRevealActive = true;
-    }, 500);
-  }
-
-  function endHold() {
-    if (!isHolding) return;
-    isHolding = false;
-    holdArea.style.background = '#f8f9fa';
-    holdArea.style.borderColor = '#667eea';
-    clearTimeout(holdTimer);
-    
-    if (secretRevealActive) {
-      secretReveal.classList.remove('active');
-      secretRevealActive = false;
-    }
-  }
-}
-
-// Spieler ist dran (nur KI-Bot Modus)
-socket.on('playerTurn', ({ player, playerId, timeLeft }) => {
-  $('currentPlayer').textContent = `${player} ist dran...`;
-  $('timer').textContent = timeLeft;
-  
-  // Nachricht hinzufügen
-  const message = document.createElement('div');
-  message.className = 'message system current-turn-message';
-  message.textContent = `${player} ist jetzt an der Reihe!`;
-  $('messages').appendChild(message);
-  $('messages').scrollTop = $('messages').scrollHeight;
-});
-
-// Timer Update
-socket.on('timerUpdate', ({ timeLeft }) => {
-  $('timer').textContent = timeLeft;
-  
-  // Farbwechsel bei wenig Zeit
-  if (timeLeft <= 5) {
-    $('timer').style.color = '#ff6b6b';
-    $('timer').style.animation = 'pulse 0.5s infinite';
-  } else if (timeLeft <= 10) {
-    $('timer').style.color = '#ffa94d';
-  } else {
-    $('timer').style.color = '#51cf66';
+    const message = document.createElement('div');
+    message.className = 'message system';
+    message.textContent = '🎉 Du bist jetzt der Host!';
+    $('messages').appendChild(message);
   }
 });
 
-// Hinweis anzeigen
-socket.on('hint', ({ from, text, isBot }) => {
-  const message = document.createElement('div');
-  message.className = `message ${isBot ? 'bot' : 'player'}`;
-  message.innerHTML = `<strong>${from}${isBot ? ' 🤖' : ''}:</strong> ${text}`;
-  $('messages').appendChild(message);
-  $('messages').scrollTop = $('messages').scrollHeight;
+// Zu wenige Spieler
+socket.on('notEnoughPlayers', () => {
+  $('notEnoughPlayersDialog').classList.remove('hidden');
 });
 
-// Abstimmungsphase starten
-socket.on('votingStarted', ({ players }) => {
-  $('ki-bot-game').classList.add('hidden');
-  $('voting-section').classList.remove('hidden');
-  
-  const votingOptions = $('voting-options');
-  votingOptions.innerHTML = players.map(player => `
-    <div class="vote-option clickable" onclick="castVote('${player.id}')">
-      <strong>${player.name}</strong>${player.isBot ? ' 🤖' : ''}
-    </div>
-  `).join('');
-});
-
-// Stimme abgeben
-window.castVote = function(targetId) {
-  if (currentRoom) {
-    socket.emit('vote', { code: currentRoom, targetId });
-    $('voting-options').innerHTML = '<div class="message system">Deine Stimme wurde abgegeben!</div>';
-  }
-};
-
-// Abstimmung anzeigen
-socket.on('voteCast', ({ from, targetName, isBot }) => {
-  const message = document.createElement('div');
-  message.className = 'message system';
-  message.textContent = `${from}${isBot ? ' 🤖' : ''} stimmt für ${targetName}`;
-  $('messages').appendChild(message);
-  $('messages').scrollTop = $('messages').scrollHeight;
-});
-
-// Spielende
-socket.on('gameEnded', ({ imposterEjected, ejectedPlayer, imposter, votes }) => {
-  $('voting-section').classList.add('hidden');
-  $('ki-bot-game').classList.add('hidden');
-  
-  const resultDiv = $('game-result');
-  resultDiv.classList.remove('hidden');
-  
-  if (imposterEjected) {
-    resultDiv.innerHTML = `
-      <div class="game-result result-win">
-        <div class="result-icon">🎉</div>
-        <h2>Crew gewinnt!</h2>
-        <p>Der Imposter <strong>${imposter}</strong> wurde enttarnt!</p>
-        <p><strong>${ejectedPlayer}</strong> wurde aus dem Spiel geworfen.</p>
-      </div>
-    `;
-  } else {
-    resultDiv.innerHTML = `
-      <div class="game-result result-lose">
-        <div class="result-icon">💀</div>
-        <h2>Imposter gewinnt!</h2>
-        <p>Der Imposter <strong>${imposter}</strong> hat sich versteckt!</p>
-        <p>Die Crew hat <strong>${ejectedPlayer}</strong> fälschlicherweise geworfen.</p>
-      </div>
-    `;
-  }
-  
-  // Nächste Runde Button für Host anzeigen
-  if (isHost) {
-    $('nextRound').classList.remove('hidden');
-  }
-});
-
-// Bestätigungsdialog anzeigen
+// Bestätigungsdialoge
 window.showConfirmation = function() {
   $('confirmationDialog').classList.remove('hidden');
 };
 
-// Bestätigungsdialog schließen
 window.hideConfirmation = function() {
   $('confirmationDialog').classList.add('hidden');
 };
 
-// Spiel wirklich verlassen
+window.hideNotEnoughPlayers = function() {
+  $('notEnoughPlayersDialog').classList.add('hidden');
+};
+
 window.confirmLeave = function() {
   if (currentRoom) {
     socket.emit('leaveGame', { code: currentRoom });
   }
   hideConfirmation();
+  hideNotEnoughPlayers();
   showStartScreen();
 };
 
-// Nächste Runde starten
-window.nextRound = function() {
-  if (currentRoom) {
-    socket.emit('nextRound', { code: currentRoom });
-    $('nextRound').classList.add('hidden');
-    $('game-result').classList.add('hidden');
-  }
-};
-
-// Voting-Optionen vorbereiten
-function prepareVotingOptions(players) {
-  // Wird für spätere Abstimmung vorbereitet
-}
-
-// Spiel-Events
-socket.on('gameStarted', () => {
-  $('messages').innerHTML = '<div class="message system">🎮 Spiel gestartet! Die Rollen wurden verteilt.</div>';
-});
-
-socket.on('roundRestarted', () => {
-  $('game-result').classList.add('hidden');
-  $('voting-section').classList.add('hidden');
-  $('messages').innerHTML = '<div class="message system">🔄 Neue Runde! Neue Wörter wurden verteilt.</div>';
-});
-
-socket.on('playerLeft', ({ playerId, playerName }) => {
-  const message = document.createElement('div');
-  message.className = 'message system';
-  message.textContent = `${playerName} hat das Spiel verlassen.`;
-  $('messages').appendChild(message);
-});
-
-socket.on('errorMsg', (msg) => {
-  alert(msg);
-});
-
-// Verbindungs-IDs speichern
+// Verbindungs-IDs
 socket.on('connect', () => {
   myId = socket.id;
   console.log('Verbunden mit ID:', myId);
 });
 
-// Verhindere Textauswahl außerhalb von Input-Feldern
+// Verhindere ungewollte Textauswahl
 document.addEventListener('mousedown', (e) => {
   if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'TEXTAREA') {
     e.preventDefault();
