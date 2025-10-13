@@ -40,7 +40,6 @@ const WORD_PAIRS = [
 ];
 
 const rooms = new Map();
-const botNames = ["Alex", "Mia", "Finn", "Lena", "Ben", "Emma", "Paul", "Hannah"];
 
 // Hilfsfunktionen
 function makeRoomCode() {
@@ -51,20 +50,13 @@ function pickWordPair() {
   return WORD_PAIRS[Math.floor(Math.random() * WORD_PAIRS.length)];
 }
 
-function getRandomBotName(existingNames) {
-  const availableNames = botNames.filter(name => !existingNames.includes(name));
-  return availableNames.length > 0 
-    ? availableNames[Math.floor(Math.random() * availableNames.length)]
-    : `Bot${Math.floor(Math.random() * 100)}`;
-}
-
 function publicPlayers(code) {
   const room = rooms.get(code);
   return Array.from(room.players.values()).map(p => ({ 
     name: p.name, 
-    isBot: p.isBot || false,
     id: p.id,
-    isHost: p.role === "host"
+    isHost: p.role === "host",
+    hasSeenRole: p.hasSeenRole || false
   }));
 }
 
@@ -85,9 +77,9 @@ io.on("connection", (socket) => {
   console.log('Neue Verbindung:', socket.id);
 
   // Raum erstellen
-  socket.on("createRoom", ({ name, gameMode, botCount = 0 }, cb) => {
+  socket.on("createRoom", ({ name, gameMode, playerNames = [] }, cb) => {
     const code = makeRoomCode();
-    const maxPlayers = gameMode === "local" ? 8 : 8;
+    const maxPlayers = gameMode === "handy" ? 8 : 8;
     
     rooms.set(code, { 
       players: new Map(), 
@@ -95,9 +87,7 @@ io.on("connection", (socket) => {
       started: false,
       gameMode: gameMode,
       maxPlayers: maxPlayers,
-      bots: [],
-      currentTurn: null,
-      timer: null,
+      currentPlayerIndex: 0,
       votes: new Map(),
       imposterId: null,
       roundActive: false,
@@ -105,46 +95,53 @@ io.on("connection", (socket) => {
       imposterWord: null
     });
 
-    // Host hinzufügen
-    rooms.get(code).players.set(socket.id, { 
-      name: name || "Gast", 
-      role: "host", 
-      isBot: false, 
-      id: socket.id 
-    });
-    socket.join(code);
+    const room = rooms.get(code);
 
-    // Bei KI-Bot-Modus Bots hinzufügen
-    if (gameMode === "ki-bot" && botCount > 0) {
-      const room = rooms.get(code);
-      const existingNames = Array.from(room.players.values()).map(p => p.name);
-      
-      for (let i = 0; i < botCount; i++) {
-        const botName = getRandomBotName(existingNames);
-        const bot = { name: botName, role: "crew", isBot: true, id: `bot-${i}` };
-        room.bots.push(bot);
-        room.players.set(bot.id, bot);
-        existingNames.push(botName);
-      }
+    // Spieler hinzufügen basierend auf Modus
+    if (gameMode === "handy" && playerNames.length > 0) {
+      // Für Handy-Modus: Alle Spieler auf einmal erstellen
+      playerNames.forEach((playerName, index) => {
+        const playerId = `player-${index}`;
+        room.players.set(playerId, { 
+          name: playerName, 
+          role: "crew", 
+          id: playerId,
+          hasSeenRole: false
+        });
+      });
+      // Ersten Spieler als Host markieren
+      const firstPlayerId = Array.from(room.players.keys())[0];
+      room.players.get(firstPlayerId).role = "host";
+      room.hostId = firstPlayerId;
+    } else {
+      // Für lokales Spiel: Nur Host erstellen
+      room.players.set(socket.id, { 
+        name: name || "Gast", 
+        role: "host", 
+        id: socket.id,
+        hasSeenRole: false
+      });
     }
 
-    console.log(`Raum ${code} erstellt von ${name}`);
+    socket.join(code);
+    console.log(`Raum ${code} erstellt, Modus: ${gameMode}`);
     cb?.({ code });
     io.to(code).emit("lobbyUpdate", publicState(code));
   });
 
-  // Raum beitreten
+  // Raum beitreten (nur für lokales Spiel)
   socket.on("joinRoom", ({ code, name }, cb) => {
     const room = rooms.get(code);
     if (!room) return cb?.({ error: "Raum nicht gefunden." });
+    if (room.gameMode !== "local") return cb?.({ error: "Dieser Raum ist nicht für manuelle Spieler." });
     if (room.started) return cb?.({ error: "Das Spiel hat bereits begonnen." });
     if (room.players.size >= room.maxPlayers) return cb?.({ error: `Maximal ${room.maxPlayers} Spieler erlaubt.` });
 
     room.players.set(socket.id, { 
       name: name || "Gast", 
       role: "crew", 
-      isBot: false, 
-      id: socket.id 
+      id: socket.id,
+      hasSeenRole: false
     });
     socket.join(code);
     console.log(`Spieler ${name} hat Raum ${code} betreten`);
@@ -156,22 +153,18 @@ io.on("connection", (socket) => {
   socket.on("startGame", ({ code }) => {
     const room = rooms.get(code);
     if (!room) return;
-    if (socket.id !== room.hostId) return io.to(socket.id).emit("errorMsg", "Nur der Admin kann starten.");
+    if (socket.id !== room.hostId && room.gameMode !== "handy") return io.to(socket.id).emit("errorMsg", "Nur der Admin kann starten.");
     
-    const minPlayers = room.gameMode === "ki-bot" ? 1 : 3;
+    const minPlayers = room.gameMode === "handy" ? 2 : 3;
     if (room.players.size < minPlayers) return io.to(socket.id).emit("errorMsg", `Mindestens ${minPlayers} Spieler nötig!`);
     
     room.started = true;
     room.votes.clear();
+    room.currentPlayerIndex = 0;
     
-    console.log(`Spiel startet in Raum ${code}`);
+    console.log(`Spiel startet in Raum ${code}, Modus: ${room.gameMode}`);
     
-    // Countdown vor Spielstart
-    io.to(code).emit("countdownStart", { duration: 5 });
-    
-    setTimeout(() => {
-      startNewRound(code);
-    }, 5000);
+    startNewRound(code);
   });
 
   function startNewRound(code) {
@@ -186,9 +179,14 @@ io.on("connection", (socket) => {
     const playerIds = allPlayers.map(p => p.id);
     
     room.imposterId = playerIds[Math.floor(Math.random() * playerIds.length)];
-    room.currentTurnIndex = 0;
+    room.currentPlayerIndex = 0;
     room.votes.clear();
     room.roundActive = true;
+
+    // Reset hasSeenRole für alle Spieler
+    for (const player of allPlayers) {
+      player.hasSeenRole = false;
+    }
 
     console.log(`Neue Runde in Raum ${code}, Imposter: ${room.players.get(room.imposterId)?.name}`);
 
@@ -197,22 +195,71 @@ io.on("connection", (socket) => {
       const isImposter = id === room.imposterId;
       player.role = isImposter ? "imposter" : "crew";
       player.word = isImposter ? imposterWord : crewWord;
-      
-      io.to(id).emit("yourRole", {
-        role: isImposter ? "Imposter" : "Crew",
-        word: isImposter ? imposterWord : crewWord,
-        note: isImposter ? "(Du bist der Imposter – du siehst nur den Tipp!)" : "(Du bist in der Crew.)",
-        isHost: id === room.hostId,
-        gameMode: room.gameMode,
-        players: publicPlayers(code)
-      });
     }
 
     io.to(code).emit("gameStarted", { 
       players: publicPlayers(code),
       roundStarted: true 
     });
+
+    // Für Handy-Modus: Ersten Spieler anzeigen
+    if (room.gameMode === "handy") {
+      showNextPlayer(code);
+    }
   }
+
+  function showNextPlayer(code) {
+    const room = rooms.get(code);
+    if (!room) return;
+
+    const allPlayers = Array.from(room.players.values());
+    if (room.currentPlayerIndex >= allPlayers.length) {
+      // Alle Spieler haben ihre Rolle gesehen -> Spielphase starten
+      startGamePhase(code);
+      return;
+    }
+
+    const currentPlayer = allPlayers[room.currentPlayerIndex];
+    currentPlayer.hasSeenRole = true;
+
+    io.to(code).emit("showPlayerRole", {
+      player: currentPlayer,
+      role: currentPlayer.role,
+      word: currentPlayer.word,
+      note: currentPlayer.role === "imposter" ? "(Du bist der Imposter – du siehst nur den Tipp!)" : "(Du bist in der Crew.)",
+      currentIndex: room.currentPlayerIndex,
+      totalPlayers: allPlayers.length
+    });
+  }
+
+  function startGamePhase(code) {
+    const room = rooms.get(code);
+    if (!room) return;
+
+    room.roundActive = true;
+    io.to(code).emit("gamePhaseStarted", {
+      players: publicPlayers(code),
+      imposter: room.players.get(room.imposterId)?.name
+    });
+  }
+
+  // Nächster Spieler (für Handy-Modus)
+  socket.on("nextPlayer", ({ code }) => {
+    const room = rooms.get(code);
+    if (!room || room.gameMode !== "handy") return;
+
+    room.currentPlayerIndex++;
+    showNextPlayer(code);
+  });
+
+  // Spieler hat Rolle gesehen (für Handy-Modus)
+  socket.on("playerSawRole", ({ code, playerId }) => {
+    const room = rooms.get(code);
+    if (room && room.players.has(playerId)) {
+      room.players.get(playerId).hasSeenRole = true;
+      io.to(code).emit("lobbyUpdate", publicState(code));
+    }
+  });
 
   // Spieler verlässt das Spiel
   socket.on("leaveGame", ({ code }) => {
