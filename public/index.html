@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Imposter – Wortspiel</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 16px; max-width: 700px; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 12px; margin: 8px 0; }
+    input, button { font-size: 16px; padding: 10px; border-radius: 10px; border: 1px solid #ccc; }
+    button { cursor: pointer; background: #008cff; color: white; border: none; }
+    h1 { color: #333; }
+    ul { list-style: none; padding: 0; }
+  </style>
+</head>
+<body>
+  <h1>Imposter – Das Wortspiel 🎭</h1>
+
+  <div id="auth" class="card">
+    <input id="name" placeholder="Dein Name" />
+    <button id="create">Raum erstellen</button>
+    <br><br>
+    <input id="code" placeholder="Raumcode" />
+    <button id="join">Beitreten</button>
+  </div>
+
+  <div id="lobby" class="card" style="display:none">
+    <div>Raum: <b id="roomCode"></b></div>
+    <ul id="players"></ul>
+    <button id="start">Spiel starten</button>
+  </div>
+
+  <div id="game" class="card" style="display:none">
+    <div><b>Deine Rolle:</b> <span id="role">?</span></div>
+    <div><b>Dein Wort:</b> <span id="word">?</span></div>
+    <p id="note"></p>
+
+    <div class="card">
+      <input id="hint" placeholder="Dein Hinweis..." />
+      <button id="sendHint">Senden</button>
+    </div>
+
+    <div class="card">
+      <h3>Hinweise</h3>
+      <ul id="hints"></ul>
+    </div>
+
+    <div class="card">
+      <input id="voteTarget" placeholder="Wen verdächtigst du?" />
+      <button id="voteBtn">Abstimmen</button>
+      <ul id="votes"></ul>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/public/client.js"></script>
+</body>
+</html>
