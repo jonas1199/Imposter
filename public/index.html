@@ -17,6 +17,15 @@
       min-height: 100vh;
       padding: 20px;
       color: #333;
+      cursor: default;
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+    }
+
+    input, select, button, .clickable {
+      cursor: pointer;
     }
 
     .container {
@@ -61,14 +70,31 @@
     }
 
     .mode-option {
-      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-      color: white;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      color: #495057;
       padding: 25px;
       border-radius: 15px;
       text-align: center;
       cursor: pointer;
       transition: all 0.3s ease;
       border: 3px solid transparent;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mode-option::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      transition: left 0.5s;
+    }
+
+    .mode-option:hover::before {
+      left: 100%;
     }
 
     .mode-option:hover {
@@ -79,6 +105,32 @@
     .mode-option.selected {
       border-color: #764ba2;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      transform: scale(1.05);
+      box-shadow: 0 20px 40px rgba(102, 126, 234, 0.4);
+    }
+
+    .mode-option.selected.local {
+      border-color: #28a745;
+      background: linear-gradient(135deg, #51cf66 0%, #28a745 100%);
+      box-shadow: 0 20px 40px rgba(40, 167, 69, 0.4);
+    }
+
+    .mode-option.selected.ki-bot {
+      border-color: #dc3545;
+      background: linear-gradient(135deg, #ff6b6b 0%, #dc3545 100%);
+      box-shadow: 0 20px 40px rgba(220, 53, 69, 0.4);
+    }
+
+    .beta-badge {
+      background: #dc3545;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.7em;
+      font-weight: bold;
+      margin-left: 8px;
+      animation: pulse 2s infinite;
     }
 
     .mode-option h3 {
@@ -97,6 +149,13 @@
       border-radius: 10px;
       font-size: 16px;
       margin: 5px 0;
+      transition: all 0.3s ease;
+    }
+
+    input:focus, select:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      outline: none;
     }
 
     button {
@@ -138,6 +197,7 @@
       display: flex;
       align-items: center;
       animation: slideIn 0.3s ease;
+      transition: all 0.3s ease;
     }
 
     @keyframes slideIn {
@@ -148,6 +208,11 @@
     .player-list li.bot {
       background: #e3f2fd;
       color: #1971c2;
+    }
+
+    .player-list li:hover {
+      transform: translateX(5px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }
 
     .player-icon {
@@ -162,6 +227,14 @@
       margin: 20px 0;
       text-align: center;
       border-left: 5px solid #ffc107;
+      animation: bounceIn 0.6s ease;
+    }
+
+    @keyframes bounceIn {
+      0% { transform: scale(0.3); opacity: 0; }
+      50% { transform: scale(1.05); }
+      70% { transform: scale(0.9); }
+      100% { transform: scale(1); opacity: 1; }
     }
 
     .role-display {
@@ -204,6 +277,12 @@
       margin: 20px 0;
       text-align: center;
       border-left: 5px solid #1971c2;
+      animation: slideInFromTop 0.5s ease;
+    }
+
+    @keyframes slideInFromTop {
+      from { opacity: 0; transform: translateY(-30px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .chat-messages {
@@ -264,11 +343,18 @@
     .vote-option:hover {
       background: #e9ecef;
       border-color: #667eea;
+      transform: translateY(-2px);
     }
 
     .game-result {
       text-align: center;
       padding: 30px;
+      animation: zoomIn 0.5s ease;
+    }
+
+    @keyframes zoomIn {
+      from { opacity: 0; transform: scale(0.5); }
+      to { opacity: 1; transform: scale(1); }
     }
 
     .result-win {
@@ -288,6 +374,105 @@
     .result-icon {
       font-size: 4em;
       margin-bottom: 20px;
+      animation: bounce 1s ease infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .countdown {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      color: white;
+      font-size: 8em;
+      font-weight: bold;
+      animation: countdownPop 1s ease infinite;
+    }
+
+    @keyframes countdownPop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+
+    .secret-reveal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1001;
+      color: white;
+      padding: 30px;
+      text-align: center;
+      transform: translateY(100%);
+      transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .secret-reveal.active {
+      transform: translateY(0);
+    }
+
+    .secret-reveal h2 {
+      font-size: 2.5em;
+      margin-bottom: 20px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .secret-word {
+      font-size: 4em;
+      font-weight: bold;
+      margin: 30px 0;
+      text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+      animation: glow 2s ease-in-out infinite alternate;
+    }
+
+    @keyframes glow {
+      from { text-shadow: 0 0 20px #fff, 0 0 30px #ff4da6, 0 0 40px #ff4da6; }
+      to { text-shadow: 0 0 20px #fff, 0 0 30px #ff4da6, 0 0 40px #ff4da6, 0 0 50px #ff4da6; }
+    }
+
+    .hold-instruction {
+      font-size: 1.2em;
+      margin-top: 30px;
+      opacity: 0.8;
+      animation: fadeInOut 2s ease-in-out infinite;
+    }
+
+    @keyframes fadeInOut {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    .loading-dots {
+      display: inline-block;
+      margin-left: 5px;
+    }
+
+    .loading-dots::after {
+      content: '';
+      animation: dots 1.5s steps(5, end) infinite;
+    }
+
+    @keyframes dots {
+      0%, 20% { content: '.'; }
+      40% { content: '..'; }
+      60%, 100% { content: '...'; }
     }
 
     .footer {
@@ -305,6 +490,14 @@
       .voting-options {
         grid-template-columns: 1fr;
       }
+      
+      .secret-word {
+        font-size: 2.5em;
+      }
+      
+      .countdown {
+        font-size: 5em;
+      }
     }
   </style>
 </head>
@@ -316,13 +509,13 @@
       <div class="subtitle">Das spannende Wortspiel mit Verstecktem</div>
       
       <div class="mode-select">
-        <div class="mode-option" onclick="selectMode('ki-bot')">
-          <h3>🤖 Mit KI Bot</h3>
-          <p>Spiele alleine oder mit Freunden gegen KI-Gegner</p>
+        <div class="mode-option local" onclick="selectMode('local')">
+          <h3>👥 Lokales Spiel</h3>
+          <p>Spiele mit Freunden auf einem Gerät</p>
         </div>
-        <div class="mode-option" onclick="selectMode('offline')">
-          <h3>👥 Mit einer Gruppe</h3>
-          <p>3-8 Spieler offline am gleichen Gerät</p>
+        <div class="mode-option ki-bot" onclick="selectMode('ki-bot')">
+          <h3>🤖 Mit KI Bot <span class="beta-badge">BETA</span></h3>
+          <p>Spiele alleine oder mit Freunden gegen KI-Gegner</p>
         </div>
       </div>
 
@@ -346,30 +539,20 @@
       </div>
     </div>
 
-    <!-- Offline-Beitritt -->
-    <div id="join-offline" class="card hidden">
-      <h2>Gruppe beitreten</h2>
-      <div class="input-group">
-        <input id="name-offline" placeholder="Dein Name" />
-        <input id="code-offline" placeholder="Raumcode" />
-        <button id="joinRoom">Beitreten</button>
-      </div>
-      <button class="secondary" onclick="showStartScreen()">← Zurück</button>
-    </div>
-
     <!-- Lobby -->
     <div id="lobby" class="card hidden">
       <h2>Lobby</h2>
       <div class="game-info">
         <strong>Raum:</strong> <span id="roomCode"></span> | 
         <strong>Modus:</strong> <span id="gameMode"></span>
+        <span id="loading" class="loading-dots hidden">Warte auf Spieler</span>
       </div>
       
       <div>Spieler (<span id="playerCount">0</span>/<span id="maxPlayers">8</span>):</div>
       <ul id="players" class="player-list"></ul>
       
       <button id="startGame">Spiel starten</button>
-      <button class="secondary" onclick="leaveRoom()">Raum verlassen</button>
+      <button class="danger" onclick="leaveRoom()">❌ Raum verlassen</button>
     </div>
 
     <!-- Spielbereich -->
@@ -377,9 +560,12 @@
       <button class="danger" onclick="leaveGame()" style="margin-bottom: 20px;">❌ Spiel verlassen</button>
       
       <div class="role-display">
-        <h2>Deine Rolle: <span id="role">?</span></h2>
-        <div class="word-display" id="word">?</div>
-        <p id="note"></p>
+        <h2>Deine Rolle wird geheim gehalten!</h2>
+        <p>Halte den Bildschirm gedrückt, um deine Rolle und dein Wort zu enthüllen</p>
+        <div class="hold-area" style="padding: 40px; margin: 20px 0; background: #f8f9fa; border-radius: 15px; text-align: center; border: 3px dashed #667eea;">
+          <h3 style="color: #667eea; margin-bottom: 20px;">👆 Hier gedrückt halten</h3>
+          <p style="color: #666; font-size: 0.9em;">Halte deinen Finger/Daumen auf diesem Bereich, um dein Geheimnis zu enthüllen</p>
+        </div>
       </div>
 
       <!-- KI-Bot Modus spezifisch -->
@@ -411,6 +597,17 @@
     </div>
   </div>
 
+  <!-- Countdown Overlay -->
+  <div id="countdown" class="countdown hidden"></div>
+
+  <!-- Secret Reveal Overlay -->
+  <div id="secretReveal" class="secret-reveal">
+    <h2 id="secretRole">Deine Rolle</h2>
+    <div class="secret-word" id="secretWord">Wort</div>
+    <p id="secretNote"></p>
+    <div class="hold-instruction">Halte weiter gedrückt...</div>
+  </div>
+
   <div class="footer">
     Imposter Wortspiel © 2024
   </div>
@@ -419,4 +616,3 @@
   <script src="/client.js"></script>
 </body>
 </html>
-
