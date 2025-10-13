@@ -131,7 +131,7 @@ io.on("connection", (socket) => {
   // Raum erstellen mit Spielmodus-Auswahl
   socket.on("createRoom", ({ name, gameMode, botCount = 0 }, cb) => {
     const code = makeRoomCode();
-    const maxPlayers = gameMode === "offline" ? 8 : 8; // KI-Bot kann jetzt auch mit mehr Spielern
+    const maxPlayers = gameMode === "local" ? 8 : 8;
     
     rooms.set(code, { 
       players: new Map(), 
@@ -180,11 +180,11 @@ io.on("connection", (socket) => {
     io.to(code).emit("lobbyUpdate", publicState(code));
   });
 
-  // Raum beitreten (nur für Offline-Modus)
+  // Raum beitreten (nur für Local-Modus)
   socket.on("joinRoom", ({ code, name }, cb) => {
     const room = rooms.get(code);
     if (!room) return cb?.({ error: "Raum nicht gefunden." });
-    if (room.gameMode !== "offline") return cb?.({ error: "Dieser Raum ist nicht für manuelle Spieler." });
+    if (room.gameMode !== "local") return cb?.({ error: "Dieser Raum ist nicht für manuelle Spieler." });
     if (room.started) return cb?.({ error: "Das Spiel hat bereits begonnen." });
     if (room.players.size >= room.maxPlayers) return cb?.({ error: `Maximal ${room.maxPlayers} Spieler erlaubt.` });
 
@@ -205,12 +205,18 @@ io.on("connection", (socket) => {
     if (!room) return;
     if (socket.id !== room.hostId) return io.to(socket.id).emit("errorMsg", "Nur der Admin kann starten.");
     
-    const minPlayers = 1; // Jetzt kann man auch alleine mit Bots spielen
+    const minPlayers = 1;
     if (room.players.size < minPlayers) return io.to(socket.id).emit("errorMsg", `Mindestens ${minPlayers} Spieler nötig!`);
     
     room.started = true;
     room.votes.clear();
-    startNewRound(code);
+    
+    // Countdown vor Spielstart
+    io.to(code).emit("countdownStart", { duration: 5 });
+    
+    setTimeout(() => {
+      startNewRound(code);
+    }, 5000);
   });
 
   function startNewRound(code) {
@@ -248,7 +254,9 @@ io.on("connection", (socket) => {
 
     // Nur bei KI-Bot-Modus: Spielablauf starten
     if (room.gameMode === "ki-bot") {
-      startBotGameRound(code);
+      setTimeout(() => {
+        startBotGameRound(code);
+      }, 2000);
     }
   }
 
@@ -369,7 +377,7 @@ io.on("connection", (socket) => {
     });
   }
 
-  // Manuelle Abstimmung (für Offline-Modus)
+  // Manuelle Abstimmung (für Local-Modus)
   socket.on("vote", ({ code, targetId }) => {
     const room = rooms.get(code);
     if (!room || !room.roundActive) return;
@@ -430,4 +438,3 @@ io.on("connection", (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log("Server läuft auf Port " + PORT));
-
