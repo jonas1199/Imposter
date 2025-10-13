@@ -5,13 +5,14 @@ let currentRoom = null;
 let currentGameMode = null;
 let myId = null;
 let secretRevealActive = false;
+let isHost = false;
 
 // Spielmodus auswählen
 window.selectMode = function(mode) {
   currentGameMode = mode;
   
   document.querySelectorAll('.mode-option').forEach(opt => {
-    opt.classList.remove('selected');
+    opt.classList.remove('selected', 'local', 'ki-bot');
   });
   
   const selectedOption = event.currentTarget;
@@ -28,6 +29,7 @@ window.showStartScreen = function() {
   $('game').classList.add('hidden');
   currentRoom = null;
   myId = null;
+  isHost = false;
   
   // Reset mode selection
   document.querySelectorAll('.mode-option').forEach(opt => {
@@ -51,10 +53,36 @@ $('createRoom').onclick = () => {
     botCount: botCount
   }, ({ code }) => {
     currentRoom = code;
+    isHost = true;
     $('start').classList.add('hidden');
     $('lobby').classList.remove('hidden');
     $('roomCode').textContent = code;
     $('gameMode').textContent = currentGameMode === 'ki-bot' ? 'KI-Bot Modus (BETA)' : 'Lokales Spiel';
+    $('loading').classList.remove('hidden');
+  });
+};
+
+// Raum beitreten
+$('joinRoom').onclick = () => {
+  const myName = $('name').value.trim() || "Gast";
+  const code = $('joinCode').value.trim().toUpperCase();
+  
+  if (!code) {
+    alert('Bitte gib einen Raumbcode ein!');
+    return;
+  }
+  
+  socket.emit('joinRoom', { code, name: myName }, (res) => {
+    if (res?.error) {
+      alert(res.error);
+      return;
+    }
+    currentRoom = code;
+    isHost = false;
+    $('start').classList.add('hidden');
+    $('lobby').classList.remove('hidden');
+    $('roomCode').textContent = code;
+    $('gameMode').textContent = 'Lokales Spiel';
     $('loading').classList.remove('hidden');
   });
 };
@@ -69,14 +97,16 @@ socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers }) => {
   $('players').innerHTML = players.map(p => 
     `<li class="${p.isBot ? 'bot' : ''}">
       <span class="player-icon">${p.isBot ? '🤖' : '👤'}</span>
-      ${p.name} ${p.isBot ? '(Bot)' : ''}
+      ${p.name} ${p.isBot ? '(Bot)' : ''} ${p.id === myId ? '(Du)' : ''}
     </li>`
   ).join('');
   
-  $('startGame').style.display = players.length >= 1 ? 'block' : 'none';
+  // Start-Button nur für Host anzeigen und nur bei genug Spielern
+  const minPlayers = gameMode === 'ki-bot' ? 1 : 3;
+  $('startGame').style.display = isHost && players.length >= minPlayers ? 'block' : 'none';
   
-  // Loading indicator nur zeigen, wenn nicht genug Spieler für lokales Spiel
-  if (gameMode === 'local' && players.length < 3) {
+  // Loading indicator
+  if (players.length < minPlayers) {
     $('loading').classList.remove('hidden');
   } else {
     $('loading').classList.add('hidden');
@@ -84,11 +114,16 @@ socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers }) => {
 });
 
 // Spiel starten
-$('startGame').onclick = () => socket.emit('startGame', { code: currentRoom });
+$('startGame').onclick = () => {
+  if (currentRoom) {
+    socket.emit('startGame', { code: currentRoom });
+  }
+};
 
 // Countdown vor Spielstart
 socket.on('countdownStart', ({ duration }) => {
   $('lobby').classList.add('hidden');
+  $('game').classList.remove('hidden');
   $('countdown').classList.remove('hidden');
   
   let count = duration;
@@ -101,13 +136,14 @@ socket.on('countdownStart', ({ duration }) => {
     if (count <= 0) {
       clearInterval(countdownInterval);
       $('countdown').classList.add('hidden');
-      $('game').classList.remove('hidden');
     }
   }, 1000);
 });
 
 // Rolle/Wort anzeigen
-socket.on('yourRole', ({ role, word, note, isHost, gameMode, players }) => {
+socket.on('yourRole', ({ role, word, note, isHost: hostStatus, gameMode, players }) => {
+  isHost = hostStatus;
+  
   // Secret Reveal vorbereiten
   $('secretRole').textContent = role;
   $('secretWord').textContent = word;
@@ -115,6 +151,11 @@ socket.on('yourRole', ({ role, word, note, isHost, gameMode, players }) => {
   
   // Hold-Mechanismus einrichten
   setupHoldToReveal();
+  
+  // Admin-Panel für Host anzeigen
+  if (isHost) {
+    $('adminPanel').classList.remove('hidden');
+  }
   
   // Modus-spezifische Elemente anzeigen
   if (gameMode === 'ki-bot') {
@@ -158,6 +199,8 @@ function setupHoldToReveal() {
   function startHold() {
     if (isHolding) return;
     isHolding = true;
+    holdArea.style.background = '#e9ecef';
+    holdArea.style.borderColor = '#667eea';
     
     holdTimer = setTimeout(() => {
       secretReveal.classList.add('active');
@@ -168,6 +211,8 @@ function setupHoldToReveal() {
   function endHold() {
     if (!isHolding) return;
     isHolding = false;
+    holdArea.style.background = '#f8f9fa';
+    holdArea.style.borderColor = '#667eea';
     clearTimeout(holdTimer);
     
     if (secretRevealActive) {
@@ -183,13 +228,11 @@ socket.on('playerTurn', ({ player, playerId, timeLeft }) => {
   $('timer').textContent = timeLeft;
   
   // Nachricht hinzufügen
-  if (!document.querySelector('.current-turn-message')) {
-    const message = document.createElement('div');
-    message.className = 'message system current-turn-message';
-    message.textContent = `${player} ist jetzt an der Reihe!`;
-    $('messages').appendChild(message);
-    $('messages').scrollTop = $('messages').scrollHeight;
-  }
+  const message = document.createElement('div');
+  message.className = 'message system current-turn-message';
+  message.textContent = `${player} ist jetzt an der Reihe!`;
+  $('messages').appendChild(message);
+  $('messages').scrollTop = $('messages').scrollHeight;
 });
 
 // Timer Update
@@ -214,12 +257,6 @@ socket.on('hint', ({ from, text, isBot }) => {
   message.innerHTML = `<strong>${from}${isBot ? ' 🤖' : ''}:</strong> ${text}`;
   $('messages').appendChild(message);
   $('messages').scrollTop = $('messages').scrollHeight;
-  
-  // Alte "ist dran" Nachricht entfernen
-  const turnMessage = document.querySelector('.current-turn-message');
-  if (turnMessage) {
-    turnMessage.remove();
-  }
 });
 
 // Abstimmungsphase starten
@@ -237,8 +274,10 @@ socket.on('votingStarted', ({ players }) => {
 
 // Stimme abgeben
 window.castVote = function(targetId) {
-  socket.emit('vote', { code: currentRoom, targetId });
-  $('voting-options').innerHTML = '<div class="message system">Deine Stimme wurde abgegeben!</div>';
+  if (currentRoom) {
+    socket.emit('vote', { code: currentRoom, targetId });
+    $('voting-options').innerHTML = '<div class="message system">Deine Stimme wurde abgegeben!</div>';
+  }
 };
 
 // Abstimmung anzeigen
@@ -278,31 +317,44 @@ socket.on('gameEnded', ({ imposterEjected, ejectedPlayer, imposter, votes }) => 
     `;
   }
   
-  $('nextRound').classList.remove('hidden');
+  // Nächste Runde Button für Host anzeigen
+  if (isHost) {
+    $('nextRound').classList.remove('hidden');
+  }
 });
+
+// Bestätigungsdialog anzeigen
+window.showConfirmation = function() {
+  $('confirmationDialog').classList.remove('hidden');
+};
+
+// Bestätigungsdialog schließen
+window.hideConfirmation = function() {
+  $('confirmationDialog').classList.add('hidden');
+};
+
+// Spiel wirklich verlassen
+window.confirmLeave = function() {
+  if (currentRoom) {
+    socket.emit('leaveGame', { code: currentRoom });
+  }
+  hideConfirmation();
+  showStartScreen();
+};
+
+// Nächste Runde starten
+window.nextRound = function() {
+  if (currentRoom) {
+    socket.emit('nextRound', { code: currentRoom });
+    $('nextRound').classList.add('hidden');
+    $('game-result').classList.add('hidden');
+  }
+};
 
 // Voting-Optionen vorbereiten
 function prepareVotingOptions(players) {
   // Wird für spätere Abstimmung vorbereitet
 }
-
-// Nächste Runde
-$('nextRound').onclick = () => socket.emit('nextRound', { code: currentRoom });
-
-// Spiel verlassen
-window.leaveGame = function() {
-  if (currentRoom) {
-    socket.emit('leaveGame', { code: currentRoom });
-  }
-  showStartScreen();
-};
-
-// Raum verlassen
-window.leaveRoom = function() {
-  socket.disconnect();
-  socket.connect();
-  showStartScreen();
-};
 
 // Spiel-Events
 socket.on('gameStarted', () => {
@@ -312,14 +364,13 @@ socket.on('gameStarted', () => {
 socket.on('roundRestarted', () => {
   $('game-result').classList.add('hidden');
   $('voting-section').classList.add('hidden');
-  $('nextRound').classList.add('hidden');
   $('messages').innerHTML = '<div class="message system">🔄 Neue Runde! Neue Wörter wurden verteilt.</div>';
 });
 
-socket.on('playerLeft', ({ playerId }) => {
+socket.on('playerLeft', ({ playerId, playerName }) => {
   const message = document.createElement('div');
   message.className = 'message system';
-  message.textContent = 'Ein Spieler hat das Spiel verlassen.';
+  message.textContent = `${playerName} hat das Spiel verlassen.`;
   $('messages').appendChild(message);
 });
 
@@ -330,9 +381,10 @@ socket.on('errorMsg', (msg) => {
 // Verbindungs-IDs speichern
 socket.on('connect', () => {
   myId = socket.id;
+  console.log('Verbunden mit ID:', myId);
 });
 
-// Global click handler to prevent text selection
+// Verhindere Textauswahl außerhalb von Input-Feldern
 document.addEventListener('mousedown', (e) => {
   if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'TEXTAREA') {
     e.preventDefault();
