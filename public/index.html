@@ -58,15 +58,15 @@
 
     .mode-select {
       display: grid;
-      grid-template-columns: 1fr;
-      gap: 15px;
-      margin: 20px 0;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 30px 0;
     }
 
     .mode-option {
       background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
       color: #495057;
-      padding: 20px;
+      padding: 25px;
       border-radius: 15px;
       text-align: center;
       cursor: pointer;
@@ -74,21 +74,16 @@
       border: 3px solid transparent;
     }
 
-    .mode-option.small {
-      padding: 15px;
-      margin: 10px 0;
-    }
-
     .mode-option:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+      transform: translateY(-5px);
+      box-shadow: 0 15px 30px rgba(0,0,0,0.2);
     }
 
     .mode-option.selected {
       border-color: #764ba2;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
-      transform: scale(1.02);
+      transform: scale(1.05);
     }
 
     .mode-option.selected.local {
@@ -96,9 +91,19 @@
       background: linear-gradient(135deg, #51cf66 0%, #28a745 100%);
     }
 
-    .mode-option.selected.handy {
-      border-color: #ff6b6b;
-      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+    .mode-option.selected.ki-bot {
+      border-color: #dc3545;
+      background: linear-gradient(135deg, #ff6b6b 0%, #dc3545 100%);
+    }
+
+    .beta-badge {
+      background: #dc3545;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 0.7em;
+      font-weight: bold;
+      margin-left: 8px;
     }
 
     .input-group {
@@ -111,44 +116,6 @@
       border-radius: 15px;
       margin: 20px 0;
       border-left: 5px solid #ffc107;
-    }
-
-    .player-names-input {
-      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-      padding: 20px;
-      border-radius: 15px;
-      margin: 20px 0;
-      border-left: 5px solid #2196f3;
-    }
-
-    .name-input-row {
-      display: flex;
-      gap: 10px;
-      margin: 10px 0;
-      align-items: center;
-    }
-
-    .name-input-row input {
-      flex: 1;
-    }
-
-    .remove-btn {
-      background: #dc3545;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      padding: 8px 12px;
-      cursor: pointer;
-    }
-
-    .add-btn {
-      background: #28a745;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      padding: 10px 15px;
-      cursor: pointer;
-      margin-top: 10px;
     }
 
     input, select, button, textarea {
@@ -187,10 +154,6 @@
       background: linear-gradient(135deg, #fa5252 0%, #e03131 100%);
     }
 
-    button.success {
-      background: linear-gradient(135deg, #51cf66 0%, #28a745 100%);
-    }
-
     .hidden {
       display: none !important;
     }
@@ -207,6 +170,11 @@
       border-radius: 10px;
       display: flex;
       align-items: center;
+    }
+
+    .player-list li.bot {
+      background: #e3f2fd;
+      color: #1971c2;
     }
 
     .player-icon {
@@ -239,41 +207,171 @@
       margin: 20px 0;
     }
 
-    .handy-player-display {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 40px;
-      border-radius: 20px;
+    .timer {
+      font-size: 3em;
+      font-weight: bold;
+      text-align: center;
+      color: #fa5252;
+      margin: 20px 0;
+    }
+
+    .turn-display {
+      background: linear-gradient(135deg, #cce7ff 0%, #99ceff 100%);
+      padding: 20px;
+      border-radius: 15px;
       margin: 20px 0;
       text-align: center;
-      min-height: 300px;
+      border-left: 5px solid #1971c2;
+    }
+
+    .chat-messages {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 2px solid #e1e5e9;
+      border-radius: 10px;
+      padding: 15px;
+      margin: 20px 0;
+      background: #f8f9fa;
+    }
+
+    .message {
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 10px;
+    }
+
+    .message.bot {
+      background: #e3f2fd;
+      border-left: 4px solid #1971c2;
+    }
+
+    .message.player {
+      background: #d4edda;
+      border-left: 4px solid #28a745;
+    }
+
+    .message.system {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      text-align: center;
+    }
+
+    .voting-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin: 20px 0;
+    }
+
+    .vote-option {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+    }
+
+    .vote-option:hover {
+      background: #e9ecef;
+      border-color: #667eea;
+    }
+
+    .game-result {
+      text-align: center;
+      padding: 30px;
+    }
+
+    .result-win {
+      background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+      color: #155724;
+      border-radius: 15px;
+      margin: 20px 0;
+    }
+
+    .result-lose {
+      background: linear-gradient(135deg, #f8d7da 0%, #f1b0b7 100%);
+      color: #721c24;
+      border-radius: 15px;
+      margin: 20px 0;
+    }
+
+    .result-icon {
+      font-size: 4em;
+      margin-bottom: 20px;
+    }
+
+    .countdown {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      color: white;
+      font-size: 8em;
+      font-weight: bold;
+    }
+
+    .countdown-number {
+      animation: countdownPop 1s ease infinite;
+    }
+
+    @keyframes countdownPop {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.7; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .secret-reveal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-    }
-
-    .handy-instruction {
-      font-size: 1.2em;
-      margin: 20px 0;
-      opacity: 0.9;
-    }
-
-    .next-player-btn {
-      background: linear-gradient(135deg, #51cf66 0%, #28a745 100%);
+      z-index: 1001;
       color: white;
-      border: none;
-      padding: 20px 40px;
-      font-size: 1.2em;
-      border-radius: 15px;
-      margin: 20px 0;
-      cursor: pointer;
+      padding: 30px;
+      text-align: center;
+      transform: translateY(100%);
+      transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .player-progress {
-      margin: 20px 0;
-      font-size: 1.1em;
+    .secret-reveal.active {
+      transform: translateY(0);
+    }
+
+    .secret-word {
+      font-size: 4em;
+      font-weight: bold;
+      margin: 30px 0;
+    }
+
+    .hold-instruction {
+      font-size: 1.2em;
+      margin-top: 30px;
       opacity: 0.8;
+    }
+
+    .loading-dots::after {
+      content: '';
+      animation: dots 1.5s steps(5, end) infinite;
+    }
+
+    @keyframes dots {
+      0%, 20% { content: '.'; }
+      40% { content: '..'; }
+      60%, 100% { content: '...'; }
     }
 
     .confirmation-dialog {
@@ -305,6 +403,42 @@
       margin-top: 20px;
     }
 
+    .admin-panel {
+      background: linear-gradient(135deg, #fff3cd 0%, #ffecb5 100%);
+      padding: 20px;
+      border-radius: 15px;
+      margin: 20px 0;
+      border-left: 5px solid #ffc107;
+      text-align: center;
+    }
+
+    .player-left-message {
+      background: #fff3cd;
+      padding: 10px;
+      border-radius: 8px;
+      margin: 5px 0;
+      text-align: center;
+      border-left: 4px solid #ffc107;
+    }
+
+    @media (max-width: 768px) {
+      .mode-select {
+        grid-template-columns: 1fr;
+      }
+      .voting-options {
+        grid-template-columns: 1fr;
+      }
+      .secret-word {
+        font-size: 2.5em;
+      }
+      .countdown {
+        font-size: 5em;
+      }
+      .confirmation-buttons {
+        grid-template-columns: 1fr;
+      }
+    }
+
     /* Animationen */
     .fade-in {
       animation: fadeIn 0.5s ease-in;
@@ -333,28 +467,6 @@
       50% { transform: scale(1.05); }
       100% { transform: scale(1); }
     }
-
-    .zoom-in {
-      animation: zoomIn 0.6s ease-out;
-    }
-
-    @keyframes zoomIn {
-      from { opacity: 0; transform: scale(0.8); }
-      to { opacity: 1; transform: scale(1); }
-    }
-
-    @media (max-width: 768px) {
-      .mode-select {
-        grid-template-columns: 1fr;
-      }
-      .confirmation-buttons {
-        grid-template-columns: 1fr;
-      }
-      .handy-player-display {
-        padding: 20px;
-        min-height: 250px;
-      }
-    }
   </style>
 </head>
 <body>
@@ -367,16 +479,29 @@
       <div class="mode-select">
         <div class="mode-option local" onclick="selectMode('local')">
           <h3>👥 Lokales Spiel</h3>
-          <p>Jeder Spieler hat ein eigenes Gerät</p>
+          <p>Spiele mit Freunden auf einem Gerät</p>
         </div>
-        
-        <div class="mode-option handy small" onclick="selectMode('handy')">
-          <h3>📱 Spiel mit einem Handy</h3>
-          <p>Ihr habt nur ein Gerät? Perfekt! Gebt es einfach weiter.</p>
+        <div class="mode-option ki-bot" onclick="selectMode('ki-bot')">
+          <h3>🤖 Mit KI Bot <span class="beta-badge">BETA</span></h3>
+          <p>Spiele alleine oder mit Freunden gegen KI-Gegner</p>
         </div>
       </div>
 
-      <button onclick="showNameInput()" id="continueBtn" class="hidden">Weiter</button>
+      <div id="ki-bot-settings" class="hidden">
+        <h3>KI-Bot Einstellungen</h3>
+        <div class="input-group">
+          <label>Anzahl KI-Bots:</label>
+          <select id="botCount">
+            <option value="1">1 Bot</option>
+            <option value="2">2 Bots</option>
+            <option value="3">3 Bots</option>
+            <option value="4">4 Bots</option>
+            <option value="5">5 Bots</option>
+          </select>
+        </div>
+      </div>
+
+      <button onclick="showNameInput()" id="continueBtn" class="hidden">Weiter zum Namen</button>
     </div>
 
     <!-- Name Eingabe -->
@@ -393,30 +518,6 @@
         <button onclick="joinRoom()" class="secondary">Raum beitreten</button>
       </div>
 
-      <button class="secondary" onclick="showStartScreen()">← Zurück</button>
-    </div>
-
-    <!-- Handy Modus: Spielernamen eingeben -->
-    <div id="handyNameInput" class="card hidden">
-      <h2>📱 Spiel mit einem Handy</h2>
-      <p>Trage alle Spielernamen ein. Das Handy wird dann reihum gegeben.</p>
-      
-      <div class="player-names-input">
-        <h3>Spielernamen</h3>
-        <div id="playerNamesList">
-          <div class="name-input-row">
-            <input type="text" placeholder="Spieler 1 Name" class="player-name-input">
-            <button class="remove-btn" onclick="removePlayerName(this)">×</button>
-          </div>
-          <div class="name-input-row">
-            <input type="text" placeholder="Spieler 2 Name" class="player-name-input">
-            <button class="remove-btn" onclick="removePlayerName(this)">×</button>
-          </div>
-        </div>
-        <button class="add-btn" onclick="addPlayerName()">+ Spieler hinzufügen</button>
-      </div>
-
-      <button onclick="createHandyRoom()" class="success">Spiel starten</button>
       <button class="secondary" onclick="showStartScreen()">← Zurück</button>
     </div>
 
@@ -440,50 +541,59 @@
     <div id="game" class="card hidden">
       <button class="danger" onclick="showConfirmation()" style="margin-bottom: 20px;">❌ Spiel verlassen</button>
       
-      <!-- Handy Modus: Spieler-Rolle anzeigen -->
-      <div id="handyRoleDisplay" class="handy-player-display hidden zoom-in">
-        <h2 id="handyPlayerName" style="font-size: 2em; margin-bottom: 20px;">Spieler</h2>
-        <div class="handy-instruction">Tippe auf den Bildschirm, um deine Rolle zu sehen</div>
-        <div id="handySecretArea" style="margin: 30px 0; min-height: 120px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-          <div style="font-size: 3em; margin-bottom: 10px;">❓</div>
-          <div style="opacity: 0.8;">Hier tippen</div>
+      <div class="role-display">
+        <h2>Deine Rolle wird geheim gehalten!</h2>
+        <p>Halte den Bildschirm gedrückt, um deine Rolle und dein Wort zu enthüllen</p>
+        <div class="hold-area" style="padding: 40px; margin: 20px 0; background: #f8f9fa; border-radius: 15px; text-align: center; border: 3px dashed #667eea;">
+          <h3 style="color: #667eea; margin-bottom: 20px;">👆 Hier gedrückt halten</h3>
+          <p style="color: #666; font-size: 0.9em;">Halte deinen Finger/Daumen auf diesem Bereich, um dein Geheimnis zu enthüllen</p>
         </div>
-        <div class="player-progress" id="playerProgress"></div>
       </div>
 
-      <!-- Handy Modus: Weitergeben -->
-      <div id="handyPassScreen" class="handy-player-display hidden zoom-in">
-        <h2 style="font-size: 2em; margin-bottom: 20px;">📱 Weitergeben</h2>
-        <div class="handy-instruction">Gib das Handy jetzt an</div>
-        <div style="font-size: 4em; margin: 30px 0;" id="nextPlayerName">Nächster Spieler</div>
-        <button class="next-player-btn" onclick="showNextPlayer()">Weiter zum nächsten Spieler</button>
-        <div class="player-progress" id="passProgress"></div>
+      <!-- Admin Panel -->
+      <div id="adminPanel" class="admin-panel hidden">
+        <h3>👑 Admin-Bereich</h3>
+        <p>Du bist der Spielleiter und kannst die nächste Runde starten</p>
+        <button onclick="nextRound()" style="margin-top: 10px;">🔄 Nächste Runde starten</button>
       </div>
 
-      <!-- Normale Spielanzeige -->
-      <div id="normalGame" class="hidden">
-        <div class="role-display">
-          <h2>Deine Rolle wird geheim gehalten!</h2>
-          <p>Halte den Bildschirm gedrückt, um deine Rolle und dein Wort zu enthüllen</p>
-          <div class="hold-area" style="padding: 40px; margin: 20px 0; background: #f8f9fa; border-radius: 15px; text-align: center; border: 3px dashed #667eea;">
-            <h3 style="color: #667eea; margin-bottom: 20px;">👆 Hier gedrückt halten</h3>
-            <p style="color: #666; font-size: 0.9em;">Halte deinen Finger/Daumen auf diesem Bereich, um dein Geheimnis zu enthüllen</p>
-          </div>
+      <!-- KI-Bot Modus -->
+      <div id="ki-bot-game" class="hidden">
+        <div class="turn-display">
+          <h3 id="currentPlayer">Bereit zum Starten...</h3>
+          <div class="timer" id="timer">25</div>
         </div>
+        
+        <div class="chat-messages" id="messages"></div>
+      </div>
 
-        <div id="adminPanel" class="admin-panel hidden">
-          <h3>👑 Admin-Bereich</h3>
-          <p>Du bist der Spielleiter und kannst die nächste Runde starten</p>
-          <button onclick="nextRound()" style="margin-top: 10px;">🔄 Nächste Runde starten</button>
+      <!-- Abstimmungsbereich -->
+      <div id="voting-section" class="hidden">
+        <div class="game-info">
+          <h3>🗳️ Wer ist der Imposter?</h3>
+          <p>Stimme für den Spieler, von dem du denkst, dass er der Imposter ist!</p>
         </div>
+        <div id="voting-options" class="voting-options"></div>
       </div>
 
       <!-- Ergebnisse -->
       <div id="game-result" class="hidden"></div>
+
+      <!-- Nächste Runde Button -->
+      <button id="nextRound" class="hidden" onclick="nextRound()">🔄 Nächste Runde starten</button>
     </div>
   </div>
 
-  <!-- Bestätigungsdialoge -->
+  <!-- Overlays -->
+  <div id="countdown" class="countdown hidden"></div>
+
+  <div id="secretReveal" class="secret-reveal">
+    <h2 id="secretRole">Deine Rolle</h2>
+    <div class="secret-word" id="secretWord">Wort</div>
+    <p id="secretNote"></p>
+    <div class="hold-instruction">Halte weiter gedrückt...</div>
+  </div>
+
   <div id="confirmationDialog" class="confirmation-dialog hidden">
     <div class="confirmation-content">
       <h3 style="color: #dc3545; margin-bottom: 15px;">⚠️ Spiel verlassen?</h3>
