@@ -4,6 +4,7 @@ const $ = (id) => document.getElementById(id);
 let currentRoom = null;
 let currentGameMode = null;
 let myId = null;
+let secretRevealActive = false;
 
 // Spielmodus auswählen
 window.selectMode = function(mode) {
@@ -12,26 +13,37 @@ window.selectMode = function(mode) {
   document.querySelectorAll('.mode-option').forEach(opt => {
     opt.classList.remove('selected');
   });
-  event.currentTarget.classList.add('selected');
+  
+  const selectedOption = event.currentTarget;
+  selectedOption.classList.add('selected');
+  selectedOption.classList.add(mode);
   
   $('ki-bot-settings').classList.toggle('hidden', mode !== 'ki-bot');
-  $('join-offline').classList.toggle('hidden', mode !== 'offline');
 };
 
 // Startbildschirm anzeigen
 window.showStartScreen = function() {
   $('start').classList.remove('hidden');
-  $('join-offline').classList.add('hidden');
   $('lobby').classList.add('hidden');
   $('game').classList.add('hidden');
   currentRoom = null;
   myId = null;
+  
+  // Reset mode selection
+  document.querySelectorAll('.mode-option').forEach(opt => {
+    opt.classList.remove('selected', 'local', 'ki-bot');
+  });
 };
 
 // Raum erstellen
 $('createRoom').onclick = () => {
   const myName = $('name').value.trim() || "Gast";
   const botCount = currentGameMode === 'ki-bot' ? parseInt($('botCount').value) : 0;
+  
+  if (!currentGameMode) {
+    alert('Bitte wähle zuerst einen Spielmodus aus!');
+    return;
+  }
   
   socket.emit('createRoom', { 
     name: myName, 
@@ -42,22 +54,8 @@ $('createRoom').onclick = () => {
     $('start').classList.add('hidden');
     $('lobby').classList.remove('hidden');
     $('roomCode').textContent = code;
-    $('gameMode').textContent = currentGameMode === 'ki-bot' ? 'KI-Bot Modus' : 'Offline Modus';
-  });
-};
-
-// Raum beitreten
-$('joinRoom').onclick = () => {
-  const myName = $('name-offline').value.trim() || "Gast";
-  const code = $('code-offline').value.trim().toUpperCase();
-  
-  socket.emit('joinRoom', { code, name: myName }, (res) => {
-    if (res?.error) return alert(res.error);
-    currentRoom = code;
-    $('join-offline').classList.add('hidden');
-    $('lobby').classList.remove('hidden');
-    $('roomCode').textContent = code;
-    $('gameMode').textContent = 'Offline Modus';
+    $('gameMode').textContent = currentGameMode === 'ki-bot' ? 'KI-Bot Modus (BETA)' : 'Lokales Spiel';
+    $('loading').classList.remove('hidden');
   });
 };
 
@@ -76,19 +74,47 @@ socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers }) => {
   ).join('');
   
   $('startGame').style.display = players.length >= 1 ? 'block' : 'none';
+  
+  // Loading indicator nur zeigen, wenn nicht genug Spieler für lokales Spiel
+  if (gameMode === 'local' && players.length < 3) {
+    $('loading').classList.remove('hidden');
+  } else {
+    $('loading').classList.add('hidden');
+  }
 });
 
 // Spiel starten
 $('startGame').onclick = () => socket.emit('startGame', { code: currentRoom });
 
+// Countdown vor Spielstart
+socket.on('countdownStart', ({ duration }) => {
+  $('lobby').classList.add('hidden');
+  $('countdown').classList.remove('hidden');
+  
+  let count = duration;
+  $('countdown').textContent = count;
+  
+  const countdownInterval = setInterval(() => {
+    count--;
+    $('countdown').textContent = count;
+    
+    if (count <= 0) {
+      clearInterval(countdownInterval);
+      $('countdown').classList.add('hidden');
+      $('game').classList.remove('hidden');
+    }
+  }, 1000);
+});
+
 // Rolle/Wort anzeigen
 socket.on('yourRole', ({ role, word, note, isHost, gameMode, players }) => {
-  $('lobby').classList.add('hidden');
-  $('game').classList.remove('hidden');
-  $('role').textContent = role;
-  $('word').textContent = word;
-  $('note').textContent = note || '';
-  $('nextRound').classList.toggle('hidden', !isHost);
+  // Secret Reveal vorbereiten
+  $('secretRole').textContent = role;
+  $('secretWord').textContent = word;
+  $('secretNote').textContent = note || '';
+  
+  // Hold-Mechanismus einrichten
+  setupHoldToReveal();
   
   // Modus-spezifische Elemente anzeigen
   if (gameMode === 'ki-bot') {
@@ -101,6 +127,55 @@ socket.on('yourRole', ({ role, word, note, isHost, gameMode, players }) => {
   // Voting-Optionen vorbereichen
   prepareVotingOptions(players);
 });
+
+// Hold-to-Reveal Mechanismus
+function setupHoldToReveal() {
+  const holdArea = document.querySelector('.hold-area');
+  const secretReveal = $('secretReveal');
+  let holdTimer;
+  let isHolding = false;
+
+  // Touch Events für Mobile
+  holdArea.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    startHold();
+  });
+
+  holdArea.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    endHold();
+  });
+
+  holdArea.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+  });
+
+  // Mouse Events für Desktop
+  holdArea.addEventListener('mousedown', startHold);
+  holdArea.addEventListener('mouseup', endHold);
+  holdArea.addEventListener('mouseleave', endHold);
+
+  function startHold() {
+    if (isHolding) return;
+    isHolding = true;
+    
+    holdTimer = setTimeout(() => {
+      secretReveal.classList.add('active');
+      secretRevealActive = true;
+    }, 500);
+  }
+
+  function endHold() {
+    if (!isHolding) return;
+    isHolding = false;
+    clearTimeout(holdTimer);
+    
+    if (secretRevealActive) {
+      secretReveal.classList.remove('active');
+      secretRevealActive = false;
+    }
+  }
+}
 
 // Spieler ist dran (nur KI-Bot Modus)
 socket.on('playerTurn', ({ player, playerId, timeLeft }) => {
@@ -154,7 +229,7 @@ socket.on('votingStarted', ({ players }) => {
   
   const votingOptions = $('voting-options');
   votingOptions.innerHTML = players.map(player => `
-    <div class="vote-option" onclick="castVote('${player.id}')">
+    <div class="vote-option clickable" onclick="castVote('${player.id}')">
       <strong>${player.name}</strong>${player.isBot ? ' 🤖' : ''}
     </div>
   `).join('');
@@ -202,6 +277,8 @@ socket.on('gameEnded', ({ imposterEjected, ejectedPlayer, imposter, votes }) => 
       </div>
     `;
   }
+  
+  $('nextRound').classList.remove('hidden');
 });
 
 // Voting-Optionen vorbereiten
@@ -235,6 +312,7 @@ socket.on('gameStarted', () => {
 socket.on('roundRestarted', () => {
   $('game-result').classList.add('hidden');
   $('voting-section').classList.add('hidden');
+  $('nextRound').classList.add('hidden');
   $('messages').innerHTML = '<div class="message system">🔄 Neue Runde! Neue Wörter wurden verteilt.</div>';
 });
 
@@ -252,4 +330,11 @@ socket.on('errorMsg', (msg) => {
 // Verbindungs-IDs speichern
 socket.on('connect', () => {
   myId = socket.id;
+});
+
+// Global click handler to prevent text selection
+document.addEventListener('mousedown', (e) => {
+  if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'TEXTAREA') {
+    e.preventDefault();
+  }
 });
