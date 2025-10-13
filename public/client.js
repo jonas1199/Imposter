@@ -136,4 +136,120 @@ socket.on('timerUpdate', ({ timeLeft }) => {
 socket.on('hint', ({ from, text, isBot }) => {
   const message = document.createElement('div');
   message.className = `message ${isBot ? 'bot' : 'player'}`;
-  message.innerHTML = `<strong>${from}${isBot ? ' 🤖' : ''}:</strong> ${text
+  message.innerHTML = `<strong>${from}${isBot ? ' 🤖' : ''}:</strong> ${text}`;
+  $('messages').appendChild(message);
+  $('messages').scrollTop = $('messages').scrollHeight;
+  
+  // Alte "ist dran" Nachricht entfernen
+  const turnMessage = document.querySelector('.current-turn-message');
+  if (turnMessage) {
+    turnMessage.remove();
+  }
+});
+
+// Abstimmungsphase starten
+socket.on('votingStarted', ({ players }) => {
+  $('ki-bot-game').classList.add('hidden');
+  $('voting-section').classList.remove('hidden');
+  
+  const votingOptions = $('voting-options');
+  votingOptions.innerHTML = players.map(player => `
+    <div class="vote-option" onclick="castVote('${player.id}')">
+      <strong>${player.name}</strong>${player.isBot ? ' 🤖' : ''}
+    </div>
+  `).join('');
+});
+
+// Stimme abgeben
+window.castVote = function(targetId) {
+  socket.emit('vote', { code: currentRoom, targetId });
+  $('voting-options').innerHTML = '<div class="message system">Deine Stimme wurde abgegeben!</div>';
+};
+
+// Abstimmung anzeigen
+socket.on('voteCast', ({ from, targetName, isBot }) => {
+  const message = document.createElement('div');
+  message.className = 'message system';
+  message.textContent = `${from}${isBot ? ' 🤖' : ''} stimmt für ${targetName}`;
+  $('messages').appendChild(message);
+  $('messages').scrollTop = $('messages').scrollHeight;
+});
+
+// Spielende
+socket.on('gameEnded', ({ imposterEjected, ejectedPlayer, imposter, votes }) => {
+  $('voting-section').classList.add('hidden');
+  $('ki-bot-game').classList.add('hidden');
+  
+  const resultDiv = $('game-result');
+  resultDiv.classList.remove('hidden');
+  
+  if (imposterEjected) {
+    resultDiv.innerHTML = `
+      <div class="game-result result-win">
+        <div class="result-icon">🎉</div>
+        <h2>Crew gewinnt!</h2>
+        <p>Der Imposter <strong>${imposter}</strong> wurde enttarnt!</p>
+        <p><strong>${ejectedPlayer}</strong> wurde aus dem Spiel geworfen.</p>
+      </div>
+    `;
+  } else {
+    resultDiv.innerHTML = `
+      <div class="game-result result-lose">
+        <div class="result-icon">💀</div>
+        <h2>Imposter gewinnt!</h2>
+        <p>Der Imposter <strong>${imposter}</strong> hat sich versteckt!</p>
+        <p>Die Crew hat <strong>${ejectedPlayer}</strong> fälschlicherweise geworfen.</p>
+      </div>
+    `;
+  }
+});
+
+// Voting-Optionen vorbereiten
+function prepareVotingOptions(players) {
+  // Wird für spätere Abstimmung vorbereitet
+}
+
+// Nächste Runde
+$('nextRound').onclick = () => socket.emit('nextRound', { code: currentRoom });
+
+// Spiel verlassen
+window.leaveGame = function() {
+  if (currentRoom) {
+    socket.emit('leaveGame', { code: currentRoom });
+  }
+  showStartScreen();
+};
+
+// Raum verlassen
+window.leaveRoom = function() {
+  socket.disconnect();
+  socket.connect();
+  showStartScreen();
+};
+
+// Spiel-Events
+socket.on('gameStarted', () => {
+  $('messages').innerHTML = '<div class="message system">🎮 Spiel gestartet! Die Rollen wurden verteilt.</div>';
+});
+
+socket.on('roundRestarted', () => {
+  $('game-result').classList.add('hidden');
+  $('voting-section').classList.add('hidden');
+  $('messages').innerHTML = '<div class="message system">🔄 Neue Runde! Neue Wörter wurden verteilt.</div>';
+});
+
+socket.on('playerLeft', ({ playerId }) => {
+  const message = document.createElement('div');
+  message.className = 'message system';
+  message.textContent = 'Ein Spieler hat das Spiel verlassen.';
+  $('messages').appendChild(message);
+});
+
+socket.on('errorMsg', (msg) => {
+  alert(msg);
+});
+
+// Verbindungs-IDs speichern
+socket.on('connect', () => {
+  myId = socket.id;
+});
