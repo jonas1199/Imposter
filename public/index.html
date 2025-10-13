@@ -142,6 +142,14 @@
       margin: 20px 0;
     }
 
+    .join-section {
+      background: linear-gradient(135deg, #fff3cd 0%, #ffecb5 100%);
+      padding: 20px;
+      border-radius: 15px;
+      margin: 20px 0;
+      border-left: 5px solid #ffc107;
+    }
+
     input, select, button {
       width: 100%;
       padding: 15px;
@@ -475,6 +483,51 @@
       60%, 100% { content: '...'; }
     }
 
+    .confirmation-dialog {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .confirmation-content {
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      text-align: center;
+      max-width: 400px;
+      margin: 20px;
+      animation: slideUp 0.4s ease;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .confirmation-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .admin-panel {
+      background: linear-gradient(135deg, #fff3cd 0%, #ffecb5 100%);
+      padding: 20px;
+      border-radius: 15px;
+      margin: 20px 0;
+      border-left: 5px solid #ffc107;
+      text-align: center;
+    }
+
     .footer {
       text-align: center;
       margin-top: 30px;
@@ -497,6 +550,10 @@
       
       .countdown {
         font-size: 5em;
+      }
+      
+      .confirmation-buttons {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -537,82 +594,13 @@
         <input id="name" placeholder="Dein Name" />
         <button id="createRoom">Raum erstellen</button>
       </div>
+
+      <div class="join-section">
+        <h3>🔗 Raum beitreten</h3>
+        <input id="joinCode" placeholder="Raumcode eingeben" />
+        <button id="joinRoom" class="secondary">Raum beitreten</button>
+      </div>
     </div>
 
     <!-- Lobby -->
-    <div id="lobby" class="card hidden">
-      <h2>Lobby</h2>
-      <div class="game-info">
-        <strong>Raum:</strong> <span id="roomCode"></span> | 
-        <strong>Modus:</strong> <span id="gameMode"></span>
-        <span id="loading" class="loading-dots hidden">Warte auf Spieler</span>
-      </div>
-      
-      <div>Spieler (<span id="playerCount">0</span>/<span id="maxPlayers">8</span>):</div>
-      <ul id="players" class="player-list"></ul>
-      
-      <button id="startGame">Spiel starten</button>
-      <button class="danger" onclick="leaveRoom()">❌ Raum verlassen</button>
-    </div>
-
-    <!-- Spielbereich -->
-    <div id="game" class="card hidden">
-      <button class="danger" onclick="leaveGame()" style="margin-bottom: 20px;">❌ Spiel verlassen</button>
-      
-      <div class="role-display">
-        <h2>Deine Rolle wird geheim gehalten!</h2>
-        <p>Halte den Bildschirm gedrückt, um deine Rolle und dein Wort zu enthüllen</p>
-        <div class="hold-area" style="padding: 40px; margin: 20px 0; background: #f8f9fa; border-radius: 15px; text-align: center; border: 3px dashed #667eea;">
-          <h3 style="color: #667eea; margin-bottom: 20px;">👆 Hier gedrückt halten</h3>
-          <p style="color: #666; font-size: 0.9em;">Halte deinen Finger/Daumen auf diesem Bereich, um dein Geheimnis zu enthüllen</p>
-        </div>
-      </div>
-
-      <!-- KI-Bot Modus spezifisch -->
-      <div id="ki-bot-game" class="hidden">
-        <div class="turn-display">
-          <h3 id="currentPlayer">Bereit zum Starten...</h3>
-          <div class="timer" id="timer">25</div>
-        </div>
-        
-        <div class="chat-messages" id="messages"></div>
-      </div>
-
-      <!-- Abstimmungsbereich -->
-      <div id="voting-section" class="hidden">
-        <div class="game-info">
-          <h3>🗳️ Wer ist der Imposter?</h3>
-          <p>Stimme für den Spieler, von dem du denkst, dass er der Imposter ist!</p>
-        </div>
-        <div id="voting-options" class="voting-options"></div>
-      </div>
-
-      <!-- Ergebnisse -->
-      <div id="game-result" class="hidden">
-        <!-- Wird dynamisch gefüllt -->
-      </div>
-
-      <!-- Admin-Button -->
-      <button id="nextRound" class="hidden" style="margin-top:20px">🔄 Nächste Runde starten</button>
-    </div>
-  </div>
-
-  <!-- Countdown Overlay -->
-  <div id="countdown" class="countdown hidden"></div>
-
-  <!-- Secret Reveal Overlay -->
-  <div id="secretReveal" class="secret-reveal">
-    <h2 id="secretRole">Deine Rolle</h2>
-    <div class="secret-word" id="secretWord">Wort</div>
-    <p id="secretNote"></p>
-    <div class="hold-instruction">Halte weiter gedrückt...</div>
-  </div>
-
-  <div class="footer">
-    Imposter Wortspiel © 2024
-  </div>
-
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="/client.js"></script>
-</body>
-</html>
+    <
