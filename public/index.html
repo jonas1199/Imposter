@@ -5,94 +5,414 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Imposter – Das Wortspiel</title>
   <style>
-    body { font-family: system-ui, sans-serif; margin: 16px; max-width: 700px; }
-    .card { border: 1px solid #ddd; border-radius: 12px; padding: 12px; margin: 8px 0; }
-    input, button, select { font-size: 16px; padding: 10px; border-radius: 10px; border: 1px solid #ccc; margin: 4px; }
-    button { cursor: pointer; background: #008cff; color: white; border: none; }
-    button.secondary { background: #6c757d; }
-    h1 { color: #333; }
-    ul { list-style: none; padding: 0; }
-    .player-list li { padding: 8px; border-bottom: 1px solid #eee; }
-    .bot { color: #666; font-style: italic; }
-    .mode-select { display: flex; gap: 10px; margin: 10px 0; }
-    .mode-option { flex: 1; text-align: center; padding: 15px; border: 2px solid #ddd; border-radius: 10px; cursor: pointer; }
-    .mode-option.selected { border-color: #008cff; background: #f0f8ff; }
-    .hidden { display: none; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      overflow: hidden;
+      animation: fadeIn 0.5s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card {
+      padding: 30px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #764ba2;
+      margin-bottom: 10px;
+      font-size: 2.5em;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 1.1em;
+    }
+
+    .mode-select {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 30px 0;
+    }
+
+    .mode-option {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+      padding: 25px;
+      border-radius: 15px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 3px solid transparent;
+    }
+
+    .mode-option:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+    }
+
+    .mode-option.selected {
+      border-color: #764ba2;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .mode-option h3 {
+      font-size: 1.4em;
+      margin-bottom: 10px;
+    }
+
+    .input-group {
+      margin: 20px 0;
+    }
+
+    input, select, button {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid #e1e5e9;
+      border-radius: 10px;
+      font-size: 16px;
+      margin: 5px 0;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    }
+
+    button.secondary {
+      background: linear-gradient(135deg, #868e96 0%, #495057 100%);
+    }
+
+    button.danger {
+      background: linear-gradient(135deg, #fa5252 0%, #e03131 100%);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .player-list {
+      list-style: none;
+      margin: 20px 0;
+    }
+
+    .player-list li {
+      padding: 15px;
+      background: #f8f9fa;
+      margin: 10px 0;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .player-list li.bot {
+      background: #e3f2fd;
+      color: #1971c2;
+    }
+
+    .player-icon {
+      margin-right: 10px;
+      font-size: 1.2em;
+    }
+
+    .game-info {
+      background: linear-gradient(135deg, #fff3cd 0%, #ffecb5 100%);
+      padding: 20px;
+      border-radius: 15px;
+      margin: 20px 0;
+      text-align: center;
+      border-left: 5px solid #ffc107;
+    }
+
+    .role-display {
+      background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+      padding: 25px;
+      border-radius: 15px;
+      margin: 20px 0;
+      text-align: center;
+      border-left: 5px solid #28a745;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+      100% { transform: scale(1); }
+    }
+
+    .word-display {
+      font-size: 2em;
+      font-weight: bold;
+      color: #764ba2;
+      margin: 20px 0;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .timer {
+      font-size: 3em;
+      font-weight: bold;
+      text-align: center;
+      color: #fa5252;
+      margin: 20px 0;
+      animation: pulse 1s infinite;
+    }
+
+    .turn-display {
+      background: linear-gradient(135deg, #cce7ff 0%, #99ceff 100%);
+      padding: 20px;
+      border-radius: 15px;
+      margin: 20px 0;
+      text-align: center;
+      border-left: 5px solid #1971c2;
+    }
+
+    .chat-messages {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 2px solid #e1e5e9;
+      border-radius: 10px;
+      padding: 15px;
+      margin: 20px 0;
+      background: #f8f9fa;
+    }
+
+    .message {
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 10px;
+      animation: messageSlide 0.3s ease;
+    }
+
+    @keyframes messageSlide {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.bot {
+      background: #e3f2fd;
+      border-left: 4px solid #1971c2;
+    }
+
+    .message.player {
+      background: #d4edda;
+      border-left: 4px solid #28a745;
+    }
+
+    .message.system {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      text-align: center;
+    }
+
+    .voting-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin: 20px 0;
+    }
+
+    .vote-option {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+    }
+
+    .vote-option:hover {
+      background: #e9ecef;
+      border-color: #667eea;
+    }
+
+    .game-result {
+      text-align: center;
+      padding: 30px;
+    }
+
+    .result-win {
+      background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+      color: #155724;
+      border-radius: 15px;
+      margin: 20px 0;
+    }
+
+    .result-lose {
+      background: linear-gradient(135deg, #f8d7da 0%, #f1b0b7 100%);
+      color: #721c24;
+      border-radius: 15px;
+      margin: 20px 0;
+    }
+
+    .result-icon {
+      font-size: 4em;
+      margin-bottom: 20px;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 30px;
+      color: #666;
+      font-size: 0.9em;
+    }
+
+    @media (max-width: 768px) {
+      .mode-select {
+        grid-template-columns: 1fr;
+      }
+      
+      .voting-options {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
-  <h1>Imposter – Das Wortspiel 🎭</h1>
-
-  <!-- Startbildschirm -->
-  <div id="start" class="card">
-    <h2>Spielmodus auswählen</h2>
-    <div class="mode-select">
-      <div class="mode-option" onclick="selectMode('ki-bot')">
-        <h3>🤖 Mit KI Bot</h3>
-        <p>Spiele alleine oder zu zweit mit KI-Spielern</p>
+  <div class="container">
+    <!-- Startbildschirm -->
+    <div id="start" class="card">
+      <h1>🎭 Imposter</h1>
+      <div class="subtitle">Das spannende Wortspiel mit Verstecktem</div>
+      
+      <div class="mode-select">
+        <div class="mode-option" onclick="selectMode('ki-bot')">
+          <h3>🤖 Mit KI Bot</h3>
+          <p>Spiele alleine oder mit Freunden gegen KI-Gegner</p>
+        </div>
+        <div class="mode-option" onclick="selectMode('offline')">
+          <h3>👥 Mit einer Gruppe</h3>
+          <p>3-8 Spieler offline am gleichen Gerät</p>
+        </div>
       </div>
-      <div class="mode-option" onclick="selectMode('offline')">
-        <h3>👥 Mit einer Gruppe</h3>
-        <p>3-8 Spieler offline am gleichen Gerät</p>
+
+      <div id="ki-bot-settings" class="hidden">
+        <h3>KI-Bot Einstellungen</h3>
+        <div class="input-group">
+          <label>Anzahl KI-Bots:</label>
+          <select id="botCount">
+            <option value="1">1 Bot</option>
+            <option value="2">2 Bots</option>
+            <option value="3">3 Bots</option>
+            <option value="4">4 Bots</option>
+            <option value="5">5 Bots</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <input id="name" placeholder="Dein Name" />
+        <button id="createRoom">Raum erstellen</button>
       </div>
     </div>
 
-    <!-- KI-Bot Einstellungen -->
-    <div id="ki-bot-settings" class="hidden">
-      <h3>KI-Bot Einstellungen</h3>
-      <label>Anzahl KI-Bots:</label>
-      <select id="botCount">
-        <option value="1">1 Bot</option>
-        <option value="2">2 Bots</option>
-        <option value="3">3 Bots</option>
-        <option value="4">4 Bots</option>
-      </select>
+    <!-- Offline-Beitritt -->
+    <div id="join-offline" class="card hidden">
+      <h2>Gruppe beitreten</h2>
+      <div class="input-group">
+        <input id="name-offline" placeholder="Dein Name" />
+        <input id="code-offline" placeholder="Raumcode" />
+        <button id="joinRoom">Beitreten</button>
+      </div>
+      <button class="secondary" onclick="showStartScreen()">← Zurück</button>
     </div>
 
-    <!-- Spielername -->
-    <div style="margin-top: 20px;">
-      <input id="name" placeholder="Dein Name" />
-      <button id="createRoom">Raum erstellen</button>
+    <!-- Lobby -->
+    <div id="lobby" class="card hidden">
+      <h2>Lobby</h2>
+      <div class="game-info">
+        <strong>Raum:</strong> <span id="roomCode"></span> | 
+        <strong>Modus:</strong> <span id="gameMode"></span>
+      </div>
+      
+      <div>Spieler (<span id="playerCount">0</span>/<span id="maxPlayers">8</span>):</div>
+      <ul id="players" class="player-list"></ul>
+      
+      <button id="startGame">Spiel starten</button>
+      <button class="secondary" onclick="leaveRoom()">Raum verlassen</button>
+    </div>
+
+    <!-- Spielbereich -->
+    <div id="game" class="card hidden">
+      <button class="danger" onclick="leaveGame()" style="margin-bottom: 20px;">❌ Spiel verlassen</button>
+      
+      <div class="role-display">
+        <h2>Deine Rolle: <span id="role">?</span></h2>
+        <div class="word-display" id="word">?</div>
+        <p id="note"></p>
+      </div>
+
+      <!-- KI-Bot Modus spezifisch -->
+      <div id="ki-bot-game" class="hidden">
+        <div class="turn-display">
+          <h3 id="currentPlayer">Bereit zum Starten...</h3>
+          <div class="timer" id="timer">25</div>
+        </div>
+        
+        <div class="chat-messages" id="messages"></div>
+      </div>
+
+      <!-- Abstimmungsbereich -->
+      <div id="voting-section" class="hidden">
+        <div class="game-info">
+          <h3>🗳️ Wer ist der Imposter?</h3>
+          <p>Stimme für den Spieler, von dem du denkst, dass er der Imposter ist!</p>
+        </div>
+        <div id="voting-options" class="voting-options"></div>
+      </div>
+
+      <!-- Ergebnisse -->
+      <div id="game-result" class="hidden">
+        <!-- Wird dynamisch gefüllt -->
+      </div>
+
+      <!-- Admin-Button -->
+      <button id="nextRound" class="hidden" style="margin-top:20px">🔄 Nächste Runde starten</button>
     </div>
   </div>
 
-  <!-- Offline-Beitritt (nur für Gruppenmodus) -->
-  <div id="join-offline" class="card hidden">
-    <h2>Gruppe beitreten</h2>
-    <input id="name-offline" placeholder="Dein Name" />
-    <input id="code-offline" placeholder="Raumcode" />
-    <button id="joinRoom">Beitreten</button>
-    <button class="secondary" onclick="showStartScreen()">← Zurück</button>
-  </div>
-
-  <!-- Lobby -->
-  <div id="lobby" class="card hidden">
-    <div>Raum: <b id="roomCode"></b> | Modus: <span id="gameMode"></span></div>
-    <div>Spieler (<span id="playerCount">0</span>/<span id="maxPlayers">8</span>):</div>
-    <ul id="players" class="player-list"></ul>
-    <button id="startGame">Spiel starten</button>
-    <button class="secondary" onclick="leaveRoom()">Raum verlassen</button>
-  </div>
-
-  <!-- Spiel -->
-  <div id="game" class="card hidden">
-    <div><b>Deine Rolle:</b> <span id="role">?</span></div>
-    <div><b>Dein Wort / Tipp:</b> <span id="word">?</span></div>
-    <p id="note"></p>
-    
-    <!-- Chat/Hinweise Bereich -->
-    <div id="chat" style="margin-top: 20px; max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 8px;">
-      <div id="messages"></div>
-    </div>
-    
-    <!-- Hinweis eingeben -->
-    <div style="margin-top: 10px;">
-      <input id="hintInput" placeholder="Dein Hinweis..." style="width: 70%;" />
-      <button onclick="submitHint()">Hinweis senden</button>
-    </div>
-
-    <!-- Admin-Button -->
-    <button id="nextRound" class="hidden" style="margin-top:12px">Nächste Runde starten</button>
+  <div class="footer">
+    Imposter Wortspiel © 2024
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
