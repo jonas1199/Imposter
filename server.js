@@ -9,7 +9,10 @@ const io = new Server(server);
 // Statische Dateien (Frontend)
 app.use(express.static("public"));
 
-// Wortpaare (Crewwort / Imposterwort)
+/**
+ * Wortpaare: [Crew-Wort, Imposter-Tipp]
+ * Du kannst hier beliebig erweitern/ändern.
+ */
 const WORD_PAIRS = [
   ["Pizza", "Burger"],
   ["Hund", "Katze"],
@@ -43,19 +46,33 @@ function makeRoomCode() {
 function pickWordPair() {
   return WORD_PAIRS[Math.floor(Math.random() * WORD_PAIRS.length)];
 }
+function publicPlayers(code) {
+  const room = rooms.get(code);
+  return Array.from(room.players.values()).map(p => ({ name: p.name }));
+}
+function publicState(code) {
+  const room = rooms.get(code);
+  if (!room) return null;
+  return { code, started: room.started, players: publicPlayers(code) };
+}
+function playerName(code, id) {
+  const room = rooms.get(code);
+  return room?.players.get(id)?.name ?? "???";
+}
 
+// Socket.IO
 io.on("connection", (socket) => {
-  // Raum erstellen
+  // Raum erstellen (Host merken)
   socket.on("createRoom", ({ name }, cb) => {
     const code = makeRoomCode();
-    rooms.set(code, { players: new Map(), started: false });
+    rooms.set(code, { players: new Map(), hostId: socket.id, started: false });
     rooms.get(code).players.set(socket.id, { name, role: "host" });
     socket.join(code);
     cb?.({ code });
     io.to(code).emit("lobbyUpdate", publicState(code));
   });
 
-  // Raum beitreten
+  // Raum beitreten (max 6, min 3 für Start)
   socket.on("joinRoom", ({ code, name }, cb) => {
     const room = rooms.get(code);
     if (!room) return cb?.({ error: "Raum nicht gefunden." });
@@ -68,60 +85,67 @@ io.on("connection", (socket) => {
     io.to(code).emit("lobbyUpdate", publicState(code));
   });
 
-  // Spiel starten
+  // Spiel starten (nur Host)
   socket.on("startGame", ({ code }) => {
     const room = rooms.get(code);
     if (!room) return;
-    if (room.started) return;
-    const playerCount = room.players.size;
-    if (playerCount < 3) {
-      io.to(socket.id).emit("errorMsg", "Mindestens 3 Spieler nötig!");
-      return;
-    }
-
+    if (socket.id !== room.hostId) return io.to(socket.id).emit("errorMsg", "Nur der Admin kann starten.");
+    if (room.players.size < 3) return io.to(socket.id).emit("errorMsg", "Mindestens 3 Spieler nötig!");
     room.started = true;
-    const [crewWord, imposterWord] = pickWordPair();
 
-    // Imposter wählen
+    const [crewWord, imposterWord] = pickWordPair();
     const ids = Array.from(room.players.keys());
     const imposterId = ids[Math.floor(Math.random() * ids.length)];
 
-    // Rollen & Wörter zuteilen
-    for (const [id, player] of room.players) {
-      if (id === imposterId) {
-        player.role = "imposter";
-        io.to(id).emit("yourRole", {
-          role: "Imposter",
-          word: imposterWord,
-          note: "(Du bist der Imposter! Dein Wort ist ähnlich, aber nicht gleich.)"
-        });
-      } else {
-        player.role = "crew";
-        io.to(id).emit("yourRole", {
-          role: "Crew",
-          word: crewWord,
-          note: "(Du bist Crew! Versuche, den Imposter zu entlarven.)"
-        });
-      }
+    for (const [id, p] of room.players) {
+      const isImposter = id === imposterId;
+      p.role = isImposter ? "imposter" : "crew";
+      io.to(id).emit("yourRole", {
+        role: isImposter ? "Imposter" : "Crew",
+        word: isImposter ? imposterWord : crewWord,
+        note: isImposter ? "(Du bist der Imposter – du siehst nur den Tipp!)" : "(Du bist in der Crew.)",
+        isHost: id === room.hostId
+      });
     }
 
-    io.to(code).emit("gameStarted", {
-      players: publicPlayers(code),
-      info: "Das Spiel hat begonnen!"
-    });
+    io.to(code).emit("gameStarted", { players: publicPlayers(code) });
   });
 
-  // Hinweise austauschen
+  // Nächste Runde (nur Host)
+  socket.on("nextRound", ({ code }) => {
+    const room = rooms.get(code);
+    if (!room) return;
+    if (socket.id !== room.hostId) return io.to(socket.id).emit("errorMsg", "Nur der Admin kann die nächste Runde starten.");
+
+    const [crewWord, imposterWord] = pickWordPair();
+    const ids = Array.from(room.players.keys());
+    if (ids.length < 3) return io.to(socket.id).emit("errorMsg", "Mindestens 3 Spieler nötig!");
+
+    const imposterId = ids[Math.floor(Math.random() * ids.length)];
+
+    for (const [id, p] of room.players) {
+      const isImposter = id === imposterId;
+      p.role = isImposter ? "imposter" : "crew";
+      io.to(id).emit("yourRole", {
+        role: isImposter ? "Imposter" : "Crew",
+        word: isImposter ? imposterWord : crewWord,
+        note: isImposter ? "(Du bist der Imposter – du siehst nur den Tipp!)" : "(Du bist in der Crew.)",
+        isHost: id === room.hostId
+      });
+    }
+
+    io.to(code).emit("roundRestarted", { players: publicPlayers(code) });
+  });
+
+  // (Optional) einfache Broadcasts, falls du später Anzeigen willst
   socket.on("submitHint", ({ code, text }) => {
     io.to(code).emit("hint", { from: playerName(code, socket.id), text });
   });
-
-  // Abstimmung
   socket.on("vote", ({ code, targetName }) => {
     io.to(code).emit("voteCast", { from: playerName(code, socket.id), targetName });
   });
 
-  // Spieler verlässt das Spiel
+  // Disconnect
   socket.on("disconnect", () => {
     for (const [code, room] of rooms) {
       if (room.players.delete(socket.id)) {
@@ -133,26 +157,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// Hilfsfunktionen
-function publicState(code) {
-  const room = rooms.get(code);
-  if (!room) return null;
-  return {
-    code,
-    started: room.started,
-    players: publicPlayers(code)
-  };
-}
-
-function publicPlayers(code) {
-  const room = rooms.get(code);
-  return Array.from(room.players.values()).map(p => ({ name: p.name }));
-}
-
-function playerName(code, id) {
-  const room = rooms.get(code);
-  return room?.players.get(id)?.name ?? "???";
-}
-
+// Serverstart (wichtiger Port für Render)
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log("Server läuft auf Port " + PORT));
+
