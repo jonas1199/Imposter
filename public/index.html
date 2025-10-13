@@ -19,13 +19,14 @@
       color: #333;
       cursor: default;
       user-select: none;
-      -webkit-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
     }
 
-    input, select, button, .clickable {
+    input, select, button, .clickable, textarea {
       cursor: pointer;
+    }
+
+    textarea, input[type="text"] {
+      cursor: text;
     }
 
     .container {
@@ -35,12 +36,6 @@
       border-radius: 20px;
       box-shadow: 0 20px 40px rgba(0,0,0,0.1);
       overflow: hidden;
-      animation: fadeIn 0.5s ease-in;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
     }
 
     .card {
@@ -52,7 +47,6 @@
       color: #764ba2;
       margin-bottom: 10px;
       font-size: 2.5em;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
     }
 
     .subtitle {
@@ -78,23 +72,6 @@
       cursor: pointer;
       transition: all 0.3s ease;
       border: 3px solid transparent;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .mode-option::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-      transition: left 0.5s;
-    }
-
-    .mode-option:hover::before {
-      left: 100%;
     }
 
     .mode-option:hover {
@@ -107,19 +84,16 @@
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       transform: scale(1.05);
-      box-shadow: 0 20px 40px rgba(102, 126, 234, 0.4);
     }
 
     .mode-option.selected.local {
       border-color: #28a745;
       background: linear-gradient(135deg, #51cf66 0%, #28a745 100%);
-      box-shadow: 0 20px 40px rgba(40, 167, 69, 0.4);
     }
 
     .mode-option.selected.ki-bot {
       border-color: #dc3545;
       background: linear-gradient(135deg, #ff6b6b 0%, #dc3545 100%);
-      box-shadow: 0 20px 40px rgba(220, 53, 69, 0.4);
     }
 
     .beta-badge {
@@ -130,12 +104,6 @@
       font-size: 0.7em;
       font-weight: bold;
       margin-left: 8px;
-      animation: pulse 2s infinite;
-    }
-
-    .mode-option h3 {
-      font-size: 1.4em;
-      margin-bottom: 10px;
     }
 
     .input-group {
@@ -150,7 +118,7 @@
       border-left: 5px solid #ffc107;
     }
 
-    input, select, button {
+    input, select, button, textarea {
       width: 100%;
       padding: 15px;
       border: 2px solid #e1e5e9;
@@ -160,7 +128,7 @@
       transition: all 0.3s ease;
     }
 
-    input:focus, select:focus {
+    input:focus, select:focus, textarea:focus {
       border-color: #667eea;
       box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
       outline: none;
@@ -170,9 +138,7 @@
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       border: none;
-      cursor: pointer;
       font-weight: bold;
-      transition: all 0.3s ease;
     }
 
     button:hover {
@@ -204,23 +170,11 @@
       border-radius: 10px;
       display: flex;
       align-items: center;
-      animation: slideIn 0.3s ease;
-      transition: all 0.3s ease;
-    }
-
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateX(-20px); }
-      to { opacity: 1; transform: translateX(0); }
     }
 
     .player-list li.bot {
       background: #e3f2fd;
       color: #1971c2;
-    }
-
-    .player-list li:hover {
-      transform: translateX(5px);
-      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }
 
     .player-icon {
@@ -235,14 +189,6 @@
       margin: 20px 0;
       text-align: center;
       border-left: 5px solid #ffc107;
-      animation: bounceIn 0.6s ease;
-    }
-
-    @keyframes bounceIn {
-      0% { transform: scale(0.3); opacity: 0; }
-      50% { transform: scale(1.05); }
-      70% { transform: scale(0.9); }
-      100% { transform: scale(1); opacity: 1; }
     }
 
     .role-display {
@@ -252,13 +198,6 @@
       margin: 20px 0;
       text-align: center;
       border-left: 5px solid #28a745;
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.02); }
-      100% { transform: scale(1); }
     }
 
     .word-display {
@@ -266,7 +205,6 @@
       font-weight: bold;
       color: #764ba2;
       margin: 20px 0;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
     }
 
     .timer {
@@ -275,7 +213,6 @@
       text-align: center;
       color: #fa5252;
       margin: 20px 0;
-      animation: pulse 1s infinite;
     }
 
     .turn-display {
@@ -285,12 +222,6 @@
       margin: 20px 0;
       text-align: center;
       border-left: 5px solid #1971c2;
-      animation: slideInFromTop 0.5s ease;
-    }
-
-    @keyframes slideInFromTop {
-      from { opacity: 0; transform: translateY(-30px); }
-      to { opacity: 1; transform: translateY(0); }
     }
 
     .chat-messages {
@@ -307,12 +238,6 @@
       padding: 10px;
       margin: 5px 0;
       border-radius: 10px;
-      animation: messageSlide 0.3s ease;
-    }
-
-    @keyframes messageSlide {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
     }
 
     .message.bot {
@@ -351,18 +276,11 @@
     .vote-option:hover {
       background: #e9ecef;
       border-color: #667eea;
-      transform: translateY(-2px);
     }
 
     .game-result {
       text-align: center;
       padding: 30px;
-      animation: zoomIn 0.5s ease;
-    }
-
-    @keyframes zoomIn {
-      from { opacity: 0; transform: scale(0.5); }
-      to { opacity: 1; transform: scale(1); }
     }
 
     .result-win {
@@ -382,12 +300,6 @@
     .result-icon {
       font-size: 4em;
       margin-bottom: 20px;
-      animation: bounce 1s ease infinite;
-    }
-
-    @keyframes bounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-10px); }
     }
 
     .countdown {
@@ -396,7 +308,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0,0,0,0.8);
+      background: rgba(0,0,0,0.9);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -404,13 +316,16 @@
       color: white;
       font-size: 8em;
       font-weight: bold;
+    }
+
+    .countdown-number {
       animation: countdownPop 1s ease infinite;
     }
 
     @keyframes countdownPop {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.2); }
-      100% { transform: scale(1); }
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.7; }
+      100% { transform: scale(1); opacity: 1; }
     }
 
     .secret-reveal {
@@ -436,40 +351,16 @@
       transform: translateY(0);
     }
 
-    .secret-reveal h2 {
-      font-size: 2.5em;
-      margin-bottom: 20px;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-    }
-
     .secret-word {
       font-size: 4em;
       font-weight: bold;
       margin: 30px 0;
-      text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
-      animation: glow 2s ease-in-out infinite alternate;
-    }
-
-    @keyframes glow {
-      from { text-shadow: 0 0 20px #fff, 0 0 30px #ff4da6, 0 0 40px #ff4da6; }
-      to { text-shadow: 0 0 20px #fff, 0 0 30px #ff4da6, 0 0 40px #ff4da6, 0 0 50px #ff4da6; }
     }
 
     .hold-instruction {
       font-size: 1.2em;
       margin-top: 30px;
       opacity: 0.8;
-      animation: fadeInOut 2s ease-in-out infinite;
-    }
-
-    @keyframes fadeInOut {
-      0%, 100% { opacity: 0.6; }
-      50% { opacity: 1; }
-    }
-
-    .loading-dots {
-      display: inline-block;
-      margin-left: 5px;
     }
 
     .loading-dots::after {
@@ -494,7 +385,6 @@
       justify-content: center;
       align-items: center;
       z-index: 2000;
-      animation: fadeIn 0.3s ease;
     }
 
     .confirmation-content {
@@ -504,12 +394,6 @@
       text-align: center;
       max-width: 400px;
       margin: 20px;
-      animation: slideUp 0.4s ease;
-    }
-
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(30px); }
-      to { opacity: 1; transform: translateY(0); }
     }
 
     .confirmation-buttons {
@@ -528,38 +412,65 @@
       text-align: center;
     }
 
-    .footer {
+    .player-left-message {
+      background: #fff3cd;
+      padding: 10px;
+      border-radius: 8px;
+      margin: 5px 0;
       text-align: center;
-      margin-top: 30px;
-      color: #666;
-      font-size: 0.9em;
+      border-left: 4px solid #ffc107;
     }
 
     @media (max-width: 768px) {
       .mode-select {
         grid-template-columns: 1fr;
       }
-      
       .voting-options {
         grid-template-columns: 1fr;
       }
-      
       .secret-word {
         font-size: 2.5em;
       }
-      
       .countdown {
         font-size: 5em;
       }
-      
       .confirmation-buttons {
         grid-template-columns: 1fr;
       }
     }
+
+    /* Animationen */
+    .fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .slide-in {
+      animation: slideIn 0.5s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-30px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .pulse {
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="container fade-in">
     <!-- Startbildschirm -->
     <div id="start" class="card">
       <h1>🎭 Imposter</h1>
@@ -590,16 +501,24 @@
         </div>
       </div>
 
+      <button onclick="showNameInput()" id="continueBtn" class="hidden">Weiter zum Namen</button>
+    </div>
+
+    <!-- Name Eingabe -->
+    <div id="nameInput" class="card hidden">
+      <h2>Wie heißt du?</h2>
       <div class="input-group">
-        <input id="name" placeholder="Dein Name" />
-        <button id="createRoom">Raum erstellen</button>
+        <input id="playerName" placeholder="Dein Name" maxlength="20" />
+        <button onclick="createRoom()">Raum erstellen</button>
       </div>
 
       <div class="join-section">
-        <h3>🔗 Raum beitreten</h3>
+        <h3>🔗 Oder einem Raum beitreten</h3>
         <input id="joinCode" placeholder="Raumcode eingeben" />
-        <button id="joinRoom" class="secondary">Raum beitreten</button>
+        <button onclick="joinRoom()" class="secondary">Raum beitreten</button>
       </div>
+
+      <button class="secondary" onclick="showStartScreen()">← Zurück</button>
     </div>
 
     <!-- Lobby -->
@@ -638,7 +557,7 @@
         <button onclick="nextRound()" style="margin-top: 10px;">🔄 Nächste Runde starten</button>
       </div>
 
-      <!-- KI-Bot Modus spezifisch -->
+      <!-- KI-Bot Modus -->
       <div id="ki-bot-game" class="hidden">
         <div class="turn-display">
           <h3 id="currentPlayer">Bereit zum Starten...</h3>
@@ -658,19 +577,16 @@
       </div>
 
       <!-- Ergebnisse -->
-      <div id="game-result" class="hidden">
-        <!-- Wird dynamisch gefüllt -->
-      </div>
+      <div id="game-result" class="hidden"></div>
 
-      <!-- Nächste Runde Button (für Host nach Spielende) -->
-      <button id="nextRound" class="hidden" style="margin-top:20px" onclick="nextRound()">🔄 Nächste Runde starten</button>
+      <!-- Nächste Runde Button -->
+      <button id="nextRound" class="hidden" onclick="nextRound()">🔄 Nächste Runde starten</button>
     </div>
   </div>
 
-  <!-- Countdown Overlay -->
+  <!-- Overlays -->
   <div id="countdown" class="countdown hidden"></div>
 
-  <!-- Secret Reveal Overlay -->
   <div id="secretReveal" class="secret-reveal">
     <h2 id="secretRole">Deine Rolle</h2>
     <div class="secret-word" id="secretWord">Wort</div>
@@ -678,14 +594,10 @@
     <div class="hold-instruction">Halte weiter gedrückt...</div>
   </div>
 
-  <!-- Bestätigungsdialog -->
   <div id="confirmationDialog" class="confirmation-dialog hidden">
     <div class="confirmation-content">
       <h3 style="color: #dc3545; margin-bottom: 15px;">⚠️ Spiel verlassen?</h3>
-      <p style="margin-bottom: 20px; line-height: 1.5;">
-        Bist du sicher, dass du das Spiel verlassen möchtest?<br>
-        Du kannst später nicht mehr beitreten!
-      </p>
+      <p style="margin-bottom: 20px;">Bist du sicher? Du kannst später nicht mehr beitreten!</p>
       <div class="confirmation-buttons">
         <button class="danger" onclick="confirmLeave()">Ja, verlassen</button>
         <button class="secondary" onclick="hideConfirmation()">Abbrechen</button>
@@ -693,8 +605,15 @@
     </div>
   </div>
 
-  <div class="footer">
-    Imposter Wortspiel © 2024
+  <div id="notEnoughPlayersDialog" class="confirmation-dialog hidden">
+    <div class="confirmation-content">
+      <h3 style="color: #dc3545; margin-bottom: 15px;">⚠️ Zu wenige Spieler</h3>
+      <p style="margin-bottom: 20px;">Es sind nur noch wenige Spieler übrig. Möchtest du das Spiel verlassen?</p>
+      <div class="confirmation-buttons">
+        <button class="danger" onclick="confirmLeave()">Spiel verlassen</button>
+        <button class="secondary" onclick="hideNotEnoughPlayers()">Weiterspielen</button>
+      </div>
+    </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
