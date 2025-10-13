@@ -12,36 +12,30 @@ window.selectMode = function(mode) {
   currentGameMode = mode;
   
   document.querySelectorAll('.mode-option').forEach(opt => {
-    opt.classList.remove('selected', 'local', 'handy');
+    opt.classList.remove('selected', 'local', 'ki-bot');
   });
   
   const selectedOption = event.currentTarget;
   selectedOption.classList.add('selected');
   selectedOption.classList.add(mode);
   
+  $('ki-bot-settings').classList.toggle('hidden', mode !== 'ki-bot');
   $('continueBtn').classList.remove('hidden');
 };
 
-// Weiter-Button je nach Modus
+// Name Eingabe anzeigen
 window.showNameInput = function() {
   if (!currentGameMode) {
     alert('Bitte wähle zuerst einen Spielmodus aus!');
     return;
   }
-  
   $('start').classList.add('hidden');
-  
-  if (currentGameMode === 'handy') {
-    $('handyNameInput').classList.remove('hidden');
-  } else {
-    $('nameInput').classList.remove('hidden');
-  }
+  $('nameInput').classList.remove('hidden');
 };
 
 // Zurück zum Start
 window.showStartScreen = function() {
   $('nameInput').classList.add('hidden');
-  $('handyNameInput').classList.add('hidden');
   $('lobby').classList.add('hidden');
   $('game').classList.add('hidden');
   $('start').classList.remove('hidden');
@@ -49,58 +43,10 @@ window.showStartScreen = function() {
   currentGameMode = null;
 };
 
-// Handy-Modus: Spielernamen verwalten
-window.addPlayerName = function() {
-  const playerNamesList = $('#playerNamesList');
-  const newRow = document.createElement('div');
-  newRow.className = 'name-input-row';
-  newRow.innerHTML = `
-    <input type="text" placeholder="Spieler Name" class="player-name-input">
-    <button class="remove-btn" onclick="removePlayerName(this)">×</button>
-  `;
-  playerNamesList.appendChild(newRow);
-};
-
-window.removePlayerName = function(button) {
-  if ($('#playerNamesList').children.length > 2) {
-    button.parentElement.remove();
-  }
-};
-
-// Handy-Modus Raum erstellen
-window.createHandyRoom = function() {
-  const nameInputs = document.querySelectorAll('.player-name-input');
-  const playerNames = Array.from(nameInputs)
-    .map(input => input.value.trim())
-    .filter(name => name !== "");
-  
-  if (playerNames.length < 2) {
-    alert('Bitte trage mindestens 2 Spielernamen ein!');
-    return;
-  }
-  
-  socket.emit('createRoom', { 
-    gameMode: 'handy',
-    playerNames: playerNames
-  }, ({ code }) => {
-    currentRoom = code;
-    isHost = true;
-    $('handyNameInput').classList.add('hidden');
-    $('lobby').classList.remove('hidden');
-    $('roomCode').textContent = code;
-    $('gameMode').textContent = 'Spiel mit einem Handy';
-    $('loading').classList.add('hidden');
-    
-    // Sofort starten für Handy-Modus
-    setTimeout(() => {
-      socket.emit('startGame', { code: currentRoom });
-    }, 1000);
-  });
-};
-
-// Lokales Spiel Raum erstellen
+// Raum erstellen
 window.createRoom = function() {
   playerName = $('#playerName').value.trim() || "Gast";
+  const botCount = currentGameMode === 'ki-bot' ? parseInt($('#botCount').value) : 0;
   
   if (!playerName) {
     alert('Bitte gib einen Namen ein!');
@@ -109,14 +55,15 @@ window.createRoom = function() {
   
   socket.emit('createRoom', { 
     name: playerName, 
-    gameMode: currentGameMode
+    gameMode: currentGameMode,
+    botCount: botCount
   }, ({ code }) => {
     currentRoom = code;
     isHost = true;
     $('nameInput').classList.add('hidden');
     $('lobby').classList.remove('hidden');
     $('roomCode').textContent = code;
-    $('gameMode').textContent = 'Lokales Spiel';
+    $('gameMode').textContent = currentGameMode === 'ki-bot' ? 'KI-Bot Modus (BETA)' : 'Lokales Spiel';
     $('loading').classList.remove('hidden');
   });
 };
@@ -159,24 +106,22 @@ socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers }) => {
   $('maxPlayers').textContent = maxPlayers;
   
   $('players').innerHTML = players.map(p => 
-    `<li class="slide-in">
-      <span class="player-icon">${p.isHost ? '👑' : '👤'}</span>
-      ${p.name} ${p.id === myId ? '(Du)' : ''} ${p.isHost ? '- Host' : ''}
-      ${p.hasSeenRole ? ' ✅' : ''}
+    `<li class="${p.isBot ? 'bot' : ''} slide-in">
+      <span class="player-icon">${p.isBot ? '🤖' : p.isHost ? '👑' : '👤'}</span>
+      ${p.name} ${p.isBot ? '(Bot)' : ''} ${p.id === myId ? '(Du)' : ''} ${p.isHost ? '- Host' : ''}
     </li>`
   ).join('');
   
-  // Start-Button nur für Host anzeigen (nicht im Handy-Modus)
-  if (gameMode !== 'handy') {
-    const minPlayers = 3;
-    $('startGame').style.display = isHost && players.length >= minPlayers ? 'block' : 'none';
-    $('startGame').disabled = players.length < minPlayers;
-    
-    if (players.length < minPlayers) {
-      $('loading').classList.remove('hidden');
-    } else {
-      $('loading').classList.add('hidden');
-    }
+  // Start-Button nur für Host anzeigen
+  const minPlayers = gameMode === 'ki-bot' ? 1 : 3;
+  $('startGame').style.display = isHost && players.length >= minPlayers ? 'block' : 'none';
+  $('startGame').disabled = players.length < minPlayers;
+  
+  // Loading indicator
+  if (players.length < minPlayers) {
+    $('loading').classList.remove('hidden');
+  } else {
+    $('loading').classList.add('hidden');
   }
 });
 
@@ -187,96 +132,47 @@ $('startGame').onclick = () => {
   }
 };
 
-// Spiel gestartet
-socket.on('gameStarted', ({ players, roundStarted }) => {
+// Countdown mit Animation
+socket.on('countdownStart', ({ duration }) => {
   $('lobby').classList.add('hidden');
   $('game').classList.remove('hidden');
+  $('countdown').classList.remove('hidden');
   
-  if (currentGameMode === 'handy') {
-    // Handy-Modus: Zeige ersten Spieler
-    $('normalGame').classList.add('hidden');
-    $('handyRoleDisplay').classList.remove('hidden');
-    setupHandyRoleDisplay();
-  } else {
-    // Lokales Spiel: Normale Anzeige
-    $('normalGame').classList.remove('hidden');
-    $('handyRoleDisplay').classList.add('hidden');
-    $('handyPassScreen').classList.add('hidden');
+  let count = duration;
+  const countdownElement = $('countdown');
+  
+  function updateCountdown() {
+    countdownElement.innerHTML = `<div class="countdown-number">${count}</div>`;
     
-    if (isHost) {
-      $('adminPanel').classList.remove('hidden');
+    if (count <= 0) {
+      countdownElement.classList.add('hidden');
+      return;
     }
+    
+    count--;
+    setTimeout(updateCountdown, 1000);
   }
-});
-
-// Handy-Modus: Spieler-Rolle anzeigen
-socket.on('showPlayerRole', ({ player, role, word, note, currentIndex, totalPlayers }) => {
-  $('handyPlayerName').textContent = player.name;
-  $('playerProgress').textContent = `Spieler ${currentIndex + 1} von ${totalPlayers}`;
   
-  const secretArea = $('#handySecretArea');
-  secretArea.innerHTML = `
-    <div style="font-size: 1.5em; margin-bottom: 10px; color: ${role === 'Imposter' ? '#dc3545' : '#28a745'}">
-      ${role}
-    </div>
-    <div style="font-size: 2.5em; font-weight: bold; margin: 10px 0;">
-      ${word}
-    </div>
-    <div style="opacity: 0.8; font-size: 0.9em;">
-      ${note}
-    </div>
-  `;
-  
-  // Klick-Event für Weiter-Button
-  secretArea.onclick = () => {
-    $('handyRoleDisplay').classList.add('hidden');
-    $('handyPassScreen').classList.remove('hidden');
-    $('#nextPlayerName').textContent = getNextPlayerName(currentIndex, totalPlayers);
-    $('#passProgress').textContent = `Nächster: Spieler ${currentIndex + 2} von ${totalPlayers}`;
-  };
+  updateCountdown();
 });
-
-function getNextPlayerName(currentIndex, totalPlayers) {
-  const nextIndex = (currentIndex + 1) % totalPlayers;
-  // Hier müsste der nächste Spielername aus der Spielerliste geholt werden
-  return `Spieler ${nextIndex + 1}`;
-}
-
-// Nächsten Spieler anzeigen
-window.showNextPlayer = function() {
-  if (currentRoom) {
-    socket.emit('nextPlayer', { code: currentRoom });
-    $('handyPassScreen').classList.add('hidden');
-    $('handyRoleDisplay').classList.remove('hidden');
-  }
-};
-
-// Handy-Modus Setup
-function setupHandyRoleDisplay() {
-  const secretArea = $('#handySecretArea');
-  secretArea.innerHTML = `
-    <div style="font-size: 3em; margin-bottom: 10px;">❓</div>
-    <div style="opacity: 0.8;">Hier tippen um deine Rolle zu sehen</div>
-  `;
-}
 
 // Spieler hat verlassen
 socket.on('playerLeft', ({ playerName, remainingPlayers, newHostId }) => {
+  // Nachricht im Chat anzeigen
   const message = document.createElement('div');
   message.className = 'message system player-left-message';
   message.textContent = `🚪 ${playerName} hat das Spiel verlassen. (${remainingPlayers} Spieler verbleibend)`;
-  
-  if ($('messages')) {
-    $('messages').appendChild(message);
-    $('messages').scrollTop = $('messages').scrollHeight;
-  }
+  $('messages').appendChild(message);
+  $('messages').scrollTop = $('messages').scrollHeight;
   
   // Wenn ich neuer Host bin
   if (newHostId === myId) {
     isHost = true;
-    if ($('adminPanel')) {
-      $('adminPanel').classList.remove('hidden');
-    }
+    $('adminPanel').classList.remove('hidden');
+    const message = document.createElement('div');
+    message.className = 'message system';
+    message.textContent = '🎉 Du bist jetzt der Host!';
+    $('messages').appendChild(message);
   }
 });
 
@@ -305,13 +201,6 @@ window.confirmLeave = function() {
   hideConfirmation();
   hideNotEnoughPlayers();
   showStartScreen();
-};
-
-// Nächste Runde
-window.nextRound = function() {
-  if (currentRoom && isHost) {
-    socket.emit('nextRound', { code: currentRoom });
-  }
 };
 
 // Verbindungs-IDs
