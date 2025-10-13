@@ -205,7 +205,8 @@ io.on("connection", (socket) => {
     if (!room) return;
     if (socket.id !== room.hostId) return io.to(socket.id).emit("errorMsg", "Nur der Admin kann starten.");
     
-    const minPlayers = 1;
+    // Mindestspieleranzahl prüfen
+    const minPlayers = room.gameMode === "ki-bot" ? 1 : 3;
     if (room.players.size < minPlayers) return io.to(socket.id).emit("errorMsg", `Mindestens ${minPlayers} Spieler nötig!`);
     
     room.started = true;
@@ -405,11 +406,16 @@ io.on("connection", (socket) => {
     if (!room) return;
     if (socket.id !== room.hostId) return io.to(socket.id).emit("errorMsg", "Nur der Admin kann die nächste Runde starten.");
 
-    const minPlayers = 1;
+    const minPlayers = room.gameMode === "ki-bot" ? 1 : 3;
     if (room.players.size < minPlayers) return io.to(socket.id).emit("errorMsg", `Mindestens ${minPlayers} Spieler nötig!`);
 
-    startNewRound(code);
-    io.to(code).emit("roundRestarted");
+    // Countdown für nächste Runde
+    io.to(code).emit("countdownStart", { duration: 5 });
+    
+    setTimeout(() => {
+      startNewRound(code);
+      io.to(code).emit("roundRestarted");
+    }, 5000);
   });
 
   // Spiel verlassen
