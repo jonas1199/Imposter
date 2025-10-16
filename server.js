@@ -507,7 +507,13 @@ socket.on("joinRoom", ({ code, name }, cb) => {
   socket.on("leaveGame", ({ code }) => {
   const room = rooms.get(code);
   if (!room) return;
-
+    
+  const t = disconnectTimers.get(socket.id);
+  if (t) {
+    clearTimeout(t);
+    disconnectTimers.delete(socket.id);
+  }
+    
   const playerName = room.players.get(socket.id)?.name;
   room.players.delete(socket.id);
   socket.leave(code);
