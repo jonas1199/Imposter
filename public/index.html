@@ -299,6 +299,18 @@ button * {
   transition: transform .12s ease, box-shadow .2s ease, background .2s ease;
   vertical-align: middle;
 }
+    /* Icon-Grundstil: monochrom, über currentColor steuerbar */
+.copy-btn { color:#343a40; }
+.copy-btn svg { width:18px; height:18px; display:block; }
+
+/* Copy vs. Check umschalten */
+.copy-btn .icon-check { display:none; }
+.copy-btn.copied .icon-copy { display:none; }
+.copy-btn.copied .icon-check { display:block; }
+
+/* Bei Erfolg grün einfärben */
+.copy-btn.copied { color:#2b8a3e; }
+.copy-btn.copied svg.icon-check path { stroke: currentColor; }
 .copy-btn:hover{
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(0,0,0,0.12);
