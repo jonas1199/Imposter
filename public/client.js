@@ -90,6 +90,9 @@ $('joinRoom').onclick = () => {
 // Lobby-Updates
 socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers, hostId }) => {
   if (code !== currentRoom) return;
+  // Halte den Host-Status lokal immer synchron (falls das youAreHost-Event verpasst wurde)
+  isHost = (myId === hostId);
+  
   
   $('playerCount').textContent = players.length;
   $('maxPlayers').textContent = maxPlayers;
