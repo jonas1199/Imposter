@@ -99,7 +99,7 @@ socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers, hostId }) => {
 
   // (Optional) Host nach vorne sortieren – nur Anzeige, keine Server-Änderung
 // → Wenn du NICHT sortieren willst, lösche die nächste Zeile einfach.
-players = [...players].sort((a, b) => (a.id === hostId ? -1 : b.id === hostId ? 1 : 0));
+//players = [...players].sort((a, b) => (a.id === hostId ? -1 : b.id === hostId ? 1 : 0));
 
 $('players').innerHTML = players.map(p => {
   const isHostPlayer = p.id === hostId;
