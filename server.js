@@ -452,22 +452,36 @@ io.on("connection", (socket) => {
 
   // Spiel verlassen
   socket.on("leaveGame", ({ code }) => {
-    const room = rooms.get(code);
-    if (room) {
-      const playerName = room.players.get(socket.id)?.name;
-      room.players.delete(socket.id);
-      console.log(`Spieler ${playerName} hat Raum ${code} verlassen`);
-      io.to(code).emit("playerLeft", { playerId: socket.id, playerName });
-      socket.leave(code);
-      io.to(code).emit("lobbyUpdate", publicState(code));
-      
-      // Raum löschen wenn leer
-      if (room.players.size === 0) {
-        rooms.delete(code);
-        console.log(`Raum ${code} gelöscht (leer)`);
-      }
-    }
-  });
+  const room = rooms.get(code);
+  if (!room) return;
+
+  const playerName = room.players.get(socket.id)?.name;
+  room.players.delete(socket.id);
+  socket.leave(code);
+  console.log(`Spieler ${playerName} hat Raum ${code} verlassen`);
+
+  io.to(code).emit("playerLeft", { playerId: socket.id, playerName });
+  io.to(code).emit("lobbyUpdate", publicState(code));
+
+  // Wenn der Raum leer ist → löschen
+  if (room.players.size === 0) {
+    rooms.delete(code);
+    console.log(`Raum ${code} gelöscht (leer)`);
+    return;
+  }
+
+  // 🧠 Wenn der Host den Raum verlässt → neuen Host bestimmen
+  if (socket.id === room.hostId) {
+    const nextHostId = Array.from(room.players.keys())[0]; // erster verbleibender Spieler
+    room.hostId = nextHostId;
+    console.log(`Neuer Host in Raum ${code}: ${room.players.get(nextHostId)?.name}`);
+
+    // Nur neuen Host informieren
+    io.to(nextHostId).emit("youAreHost");
+    io.to(code).emit("lobbyUpdate", publicState(code));
+  }
+});
+
 
   // Disconnect
   socket.on("disconnect", () => {
