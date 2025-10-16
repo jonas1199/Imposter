@@ -88,18 +88,25 @@ $('joinRoom').onclick = () => {
 };
 
 // Lobby-Updates
-socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers }) => {
+socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers, hostId }) => {
   if (code !== currentRoom) return;
   
   $('playerCount').textContent = players.length;
   $('maxPlayers').textContent = maxPlayers;
-  
-  $('players').innerHTML = players.map(p => 
-    `<li class="${p.isBot ? 'bot' : ''}">
+
+  $('players').innerHTML = players.map(p => {
+  const isHostPlayer = p.id === hostId; // ← Host sauber erkennen
+  const hostLabel = isHostPlayer ? ' <span class="host-badge">👑 (Host)</span>' : '';
+  const selfLabel = p.id === myId ? ' (Du)' : '';
+  const botLabel = p.isBot ? ' (Bot)' : '';
+
+  return `
+    <li class="${p.isBot ? 'bot' : ''}">
       <span class="player-icon">${p.isBot ? '🤖' : '👤'}</span>
-      ${p.name} ${p.isBot ? '(Bot)' : ''} ${p.id === myId ? '(Du)' : ''}
-    </li>`
-  ).join('');
+      ${p.name}${botLabel}${selfLabel}${hostLabel}
+    </li>
+  `;
+}).join('');
   
   // Start-Button nur für Host anzeigen und nur bei genug Spielern
   const minPlayers = gameMode === 'ki-bot' ? 1 : 3;
