@@ -269,6 +269,19 @@ button, .clickable { cursor: pointer !important; }
 .player-list li.host:hover {
   box-shadow: 0 10px 28px rgba(244, 196, 48, 0.33);
 }
+    /* Buttons/Kacheln: nie I-Beam, nie markierbar */
+button,
+.mode-option,
+.mode-option *,
+.copy-btn,
+button * {
+  cursor: pointer !important;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
 
     /* Kopieren-Button neben Raumcode */
 .copy-btn{
@@ -737,14 +750,14 @@ button, .clickable { cursor: pointer !important; }
         <strong>Raum:</strong> 
 <span id="roomCode" class="selectable copyable" title="Zum Kopieren markieren"></span>
 <button id="copyRoomCode" class="copy-btn" aria-label="Raumcode kopieren" title="Raumcode kopieren">
-  <!-- Copy-Icon (überlappende Quadrate) -->
+  <!-- Einfache überlappende Quadrate -->
   <svg class="icon-copy" viewBox="0 0 24 24" aria-hidden="true">
-    <rect x="4" y="4" width="10" height="10" rx="1.5"></rect>
-    <rect x="10" y="10" width="10" height="10" rx="1.5"></rect>
+    <rect x="5" y="5" width="10" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"></rect>
+    <rect x="9" y="9" width="10" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"></rect>
   </svg>
-  <!-- Check-Icon für Erfolg -->
-  <svg class="icon-check" viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M20 6L9 17l-5-5" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+  <!-- Häkchen für Erfolg -->
+  <svg class="icon-check" viewBox="0 0 24 24" aria-hidden="true" style="display:none">
+    <path d="M20 6L9 17l-5-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
   </svg>
 </button>
 |  
