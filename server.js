@@ -64,6 +64,26 @@ function makeRoomCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
+function ensureUniqueName(room, desiredName, excludeSocketId = null) {
+  if (!room || !room.players) return desiredName || 'Gast';
+  const taken = new Set(
+    Array.from(room.players.values())
+      .filter(p => !excludeSocketId || p.id !== excludeSocketId)
+      .map(p => (p.name || '').trim().toLowerCase())
+  );
+
+  const base = (desiredName || 'Gast').trim();
+  if (!taken.has(base.toLowerCase())) return base;
+
+  let i = 2;
+  while (true) {
+    const candidate = `${base} (${i})`;
+    if (!taken.has(candidate.toLowerCase())) return candidate;
+    i++;
+  }
+}
+
+
 function pickWordPair() {
   return WORD_PAIRS[Math.floor(Math.random() * WORD_PAIRS.length)];
 }
@@ -215,13 +235,16 @@ io.on("connection", (socket) => {
     });
 
     // Host hinzufügen
-    rooms.get(code).players.set(socket.id, { 
-      name: name || "Gast", 
-      role: "host", 
-      isBot: false, 
-      id: socket.id 
-    });
-    socket.join(code);
+    const room = rooms.get(code);
+const uniqueHostName = ensureUniqueName(room, name || "Gast");
+room.players.set(socket.id, {
+  name: uniqueHostName,
+  role: "host",
+  isBot: false,
+  id: socket.id,
+  lastActive: Date.now()
+});
+socket.join(code);
 
     // Bei KI-Bot-Modus Bots hinzufügen
     if (gameMode === "ki-bot" && botCount > 0) {
@@ -255,65 +278,62 @@ socket.on("joinRoom", ({ code, name }, cb) => {
   if (room.gameMode !== "local") return cb?.({ error: "Dieser Raum ist nicht für manuelle Spieler." });
   if (room.started) return cb?.({ error: "Das Spiel hat bereits begonnen." });
 
-  const displayName = (name || "Gast").trim();
+  const desired = (name || "Gast").trim();
 
-  // 1) Prüfen: Gibt es bereits einen Spieler mit **gleichem Namen** (Rejoin)?
-  //    (Case-insensitive Vergleich; nicht-Bot)
-  const existingEntry = Array.from(room.players.entries()).find(([, p]) =>
-    !p.isBot && p.name.toLowerCase() === displayName.toLowerCase()
-  );
+  // Kandidat mit gleichem Namen suchen (case-insensitive, nicht-Bot)
+  const sameNameEntry = Array.from(room.players.entries())
+    .find(([, p]) => !p.isBot && (p.name || "").toLowerCase() === desired.toLowerCase());
 
-  if (existingEntry) {
-    const [oldId, oldPlayer] = existingEntry;
+  // FALL A: Rejoin (nur wenn für den "alten" Socket ein Disconnect-Timer aktiv ist)
+  if (sameNameEntry && disconnectTimers.has(sameNameEntry[0])) {
+    const [oldId, oldPlayer] = sameNameEntry;
 
-    // 1a) Falls Host → HostId umhängen
+    // Host übernehmen, wenn nötig
     if (room.hostId === oldId) {
       room.hostId = socket.id;
-      // neuem Host sagen
       io.to(socket.id).emit("youAreHost");
     }
 
-    // 1b) Timer (falls für alten Socket aktiv) abbrechen
-    const t = disconnectTimers.get(oldId);
-    if (t) {
-      clearTimeout(t);
-      disconnectTimers.delete(oldId);
-    }
+    // Disconnect-Timer abbrechen
+    clearTimeout(disconnectTimers.get(oldId));
+    disconnectTimers.delete(oldId);
 
-    // 1c) Spieler vom alten auf den neuen Socket re-binden
+    // Spieler auf neue Socket-ID umhängen
     room.players.delete(oldId);
     room.players.set(socket.id, {
       ...oldPlayer,
       id: socket.id,
       isBot: false,
-      lastActive: Date.now() 
+      lastActive: Date.now()
     });
 
     socket.join(code);
-    console.log(`Rejoin: ${displayName} in Raum ${code} (old ${oldId} -> new ${socket.id})`);
+    console.log(`Rejoin: ${oldPlayer.name} in Raum ${code} (old ${oldId} -> new ${socket.id})`);
 
-    cb?.({ ok: true, rejoined: true });
+    cb?.({ ok: true, rejoined: true, assignedName: oldPlayer.name });
     io.to(code).emit("lobbyUpdate", publicState(code));
-    return; // Wichtig: hier aufhören – kein Duplikat anlegen
+    return;
   }
 
-  // 2) Normaler Join (kein Rejoin)
+  // FALL B: Normaler Join (oder Name existiert bereits aktiv) → eindeutigen Namen vergeben
   if (room.players.size >= room.maxPlayers) return cb?.({ error: `Maximal ${room.maxPlayers} Spieler erlaubt.` });
 
+  const uniqueName = ensureUniqueName(room, desired);
   room.players.set(socket.id, {
-    name: displayName,
+    name: uniqueName,
     role: "crew",
     isBot: false,
-    id: socket.id
-    lastActive: Date.now()
+    id: socket.id,
+    lastActive: Date.now()   // ← KOMMA war bei dir einmal vergessen
   });
 
   socket.join(code);
-  console.log(`Spieler ${displayName} hat Raum ${code} betreten`);
+  console.log(`Spieler ${uniqueName} hat Raum ${code} betreten`);
 
-  cb?.({ ok: true });
+  cb?.({ ok: true, assignedName: uniqueName });
   io.to(code).emit("lobbyUpdate", publicState(code));
 });
+
 
 
   // Spiel starten
