@@ -75,6 +75,10 @@ $('createRoom').onclick = () => {
     $('roomCode').textContent = code;
     $('gameMode').textContent = currentGameMode === 'ki-bot' ? 'KI-Bot Modus (BETA)' : 'Lokales Spiel';
     $('loading').classList.remove('hidden');
+
+        // C6: Nach Erfolg im localStorage merken
+    localStorage.setItem('roomCode', code);
+    localStorage.setItem('playerName', myName);
   });
 };
 
@@ -100,6 +104,10 @@ $('joinRoom').onclick = () => {
     $('roomCode').textContent = code;
     $('gameMode').textContent = 'Lokales Spiel';
     $('loading').classList.remove('hidden');
+
+      // C6: Nach Erfolg im localStorage merken
+  localStorage.setItem('roomCode', code);
+  localStorage.setItem('playerName', myName);
   });
 };
 
@@ -437,11 +445,44 @@ socket.on('connect', () => {
   console.log('Verbunden mit ID:', myId);
 });
 
+// C6: Auto-Rejoin nach Refresh
+(() => {
+  const savedCode = localStorage.getItem('roomCode');
+  const savedName =
+    localStorage.getItem('playerName') ||
+    $('name')?.value?.trim() ||
+    'Gast';
+
+  if (!savedCode) return;
+
+  // UI optimistisch auf Lobby schalten
+  $('start')?.classList.add('hidden');
+  $('lobby')?.classList.remove('hidden');
+  if ($('roomCode')) $('roomCode').textContent = savedCode;
+  $('gameMode') && ($('gameMode').textContent = 'Lokales Spiel'); // wird ggf. durch lobbyUpdate überschrieben
+  $('loading')?.classList.remove('hidden');
+
+  // Erneut dem Raum beitreten
+  socket.emit('joinRoom', { code: savedCode, name: savedName }, (res) => {
+    if (res?.error) {
+      // Falls Raum nicht mehr existiert o.ä. → zurück zum Start
+      console.warn('Auto-Rejoin fehlgeschlagen:', res.error);
+      localStorage.removeItem('roomCode');
+      $('lobby')?.classList.add('hidden');
+      $('start')?.classList.remove('hidden');
+    }
+  });
+})();
+
 // Verhindere Textauswahl außerhalb von Input-Feldern
 document.addEventListener('mousedown', (e) => {
   const tag = e.target.tagName;
   const inSelectable = e.target.closest('.selectable');
-  const isFormField = (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || e.target.isContentEditable);
+  const isFormField =
+    tag === 'INPUT' ||
+    tag === 'SELECT' ||
+    tag === 'TEXTAREA' ||
+    e.target.isContentEditable;
   const isClickTarget = !!e.target.closest('button, .clickable, a, [role="button"]');
 
   // Nur blockieren, wenn es kein Formularfeld, kein Click-Target und kein .selectable-Text ist
@@ -449,6 +490,7 @@ document.addEventListener('mousedown', (e) => {
     e.preventDefault();
   }
 });
+
 
 
 // Kopieren-Button: Raumcode markieren & kopieren
