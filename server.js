@@ -42,10 +42,20 @@ const WORD_PAIRS = [
 // Spielräume und Bot-Logik
 const rooms = new Map();
 
+
+
 // Globale Gnadenfrist (anpassbar)
 const GRACE_MS = 20000; // 20s
 // Globale Map: socketId -> Timeout (wird im 'disconnect' gesetzt)
 const disconnectTimers = new Map();
+
+// --- Inaktivitäts-Handling ---
+const INACTIVITY_MS = 20000; // 20s bis Auto-Kick
+
+function touch(room, socketId) {
+  const p = room.players.get(socketId);
+  if (p) p.lastActive = Date.now();
+}
 
 const botNames = ["Alex", "Mia", "Finn", "Lena", "Ben", "Emma", "Paul", "Hannah"];
 
@@ -141,6 +151,43 @@ class BotPlayer {
     }
   }
 }
+setInterval(() => {
+  const now = Date.now();
+  for (const [code, room] of rooms) {
+    // Kopie der Keys, weil wir im Loop löschen
+    for (const [sid, p] of Array.from(room.players.entries())) {
+      if (p.isBot) continue;
+      if (!p.lastActive) p.lastActive = now;
+
+      if (now - p.lastActive > INACTIVITY_MS) {
+        // Spieler kicken
+        room.players.delete(sid);
+
+        io.to(code).emit("playerLeft", {
+          playerId: sid,
+          playerName: p.name,
+          reason: "inactive"
+        });
+
+        // Hostwechsel wenn nötig
+        if (room.hostId === sid) {
+          const nextHostId = Array.from(room.players.keys())[0];
+          if (nextHostId) {
+            room.hostId = nextHostId;
+            io.to(nextHostId).emit("youAreHost");
+          }
+        }
+
+        io.to(code).emit("lobbyUpdate", publicState(code));
+      }
+    }
+
+    // Raum löschen, wenn leer
+    if (room.players.size === 0) {
+      rooms.delete(code);
+    }
+  }
+}, 5000); // alle 5s prüfen
 
 // Socket.IO
 io.on("connection", (socket) => {
@@ -239,6 +286,7 @@ socket.on("joinRoom", ({ code, name }, cb) => {
       ...oldPlayer,
       id: socket.id,
       isBot: false,
+      lastActive: Date.now() 
     });
 
     socket.join(code);
@@ -257,6 +305,7 @@ socket.on("joinRoom", ({ code, name }, cb) => {
     role: "crew",
     isBot: false,
     id: socket.id
+    lastActive: Date.now()
   });
 
   socket.join(code);
@@ -289,6 +338,17 @@ socket.on("joinRoom", ({ code, name }, cb) => {
       startNewRound(code);
     }, 5000);
   });
+
+  socket.on('heartbeat', () => {
+  // Finde den Raum des Sockets und aktualisiere lastActive
+  for (const [code, room] of rooms) {
+    if (room.players.has(socket.id)) {
+      touch(room, socket.id);
+      break;
+    }
+  }
+});
+
 
   function startNewRound(code) {
     const room = rooms.get(code);
