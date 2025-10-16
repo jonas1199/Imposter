@@ -374,6 +374,14 @@ socket.on('playerLeft', ({ playerId, playerName }) => {
   $('messages').appendChild(message);
 });
 
+// Neuer Host erkannt
+socket.on('youAreHost', () => {
+  isHost = true;
+  alert('👑 Du bist jetzt der neue Host!');
+  $('adminPanel')?.classList.remove('hidden');
+});
+
+
 socket.on('errorMsg', (msg) => {
   alert(msg);
 });
