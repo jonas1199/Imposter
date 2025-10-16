@@ -96,8 +96,11 @@ if (copyBtn) copyBtn.disabled = !code;
 
         // C6: Nach Erfolg im localStorage merken
     localStorage.setItem('roomCode', code);
-    localStorage.setItem('playerName', myName);
-    startHeartbeat();   // <— NEU
+    lconst finalName = assignedName || myName;
+  localStorage.setItem('playerName', finalName);
+  const nameInput = document.getElementById('name');
+  if (nameInput) nameInput.value = finalName;
+  startHeartbeat();
   });
 };
 
