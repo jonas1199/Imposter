@@ -429,10 +429,58 @@ document.addEventListener('mousedown', (e) => {
   const tag = e.target.tagName;
   const inSelectable = e.target.closest('.selectable');
   const isFormField = (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || e.target.isContentEditable);
+  const isClickTarget = !!e.target.closest('button, .clickable, a, [role="button"]');
 
-  // Nur blockieren, wenn es kein Formularfeld und kein .selectable-Text ist
-  if (!isFormField && !inSelectable) {
+  // Nur blockieren, wenn es kein Formularfeld, kein Click-Target und kein .selectable-Text ist
+  if (!isFormField && !isClickTarget && !inSelectable) {
     e.preventDefault();
   }
 });
+
+
+// Kopieren-Button: Raumcode markieren & kopieren
+(function setupCopyRoomCode(){
+  const btn = document.getElementById('copyRoomCode');
+  const codeEl = document.getElementById('roomCode');
+  if (!btn || !codeEl) return;
+
+  btn.addEventListener('click', async () => {
+    try {
+      // 1) Text im roomCode-Span markieren
+      const range = document.createRange();
+      range.selectNodeContents(codeEl);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+
+      // 2) In die Zwischenablage kopieren (moderne API mit Fallback)
+      const text = codeEl.textContent.trim();
+      try {
+        await navigator.clipboard.writeText(text);
+        feedback(true);
+      } catch {
+        const ok = document.execCommand && document.execCommand('copy');
+        feedback(!!ok);
+      }
+    } catch {
+      feedback(false);
+    }
+  });
+
+  function feedback(success){
+    // Visuelles Feedback am Button
+    btn.classList.add('copied');
+    btn.setAttribute('aria-label', success ? 'Kopiert!' : 'Kopieren fehlgeschlagen');
+    // Code kurz highlighten
+    codeEl.classList.add('highlight');
+
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.setAttribute('aria-label', 'Raumcode kopieren');
+      window.getSelection()?.removeAllRanges();
+      codeEl.classList.remove('highlight');
+    }, 1000);
+  }
+})();
+
 
