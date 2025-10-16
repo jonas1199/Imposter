@@ -131,7 +131,7 @@ socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers, hostId }) => {
 
 $('players').innerHTML = players.map(p => {
   const isHostPlayer = p.id === hostId;
-  const selfLabel = p.id === myId ? ' (Du)' : '';
+  const selfLabel = p.id === socket.id ? ' (Du)' : '';
   const botLabel = p.isBot ? ' (Bot)' : '';
 
   // Anspruchsvolles Host-Badge mit Krone (und Tooltip)
