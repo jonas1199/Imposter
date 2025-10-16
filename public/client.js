@@ -95,12 +95,12 @@ if (copyBtn) copyBtn.disabled = !code;
     $('loading').classList.remove('hidden');
 
         // C6: Nach Erfolg im localStorage merken
-    localStorage.setItem('roomCode', code);
-    lconst finalName = assignedName || myName;
-  localStorage.setItem('playerName', finalName);
-  const nameInput = document.getElementById('name');
-  if (nameInput) nameInput.value = finalName;
-  startHeartbeat();
+    // C6: Nach Erfolg im localStorage merken
+localStorage.setItem('roomCode', code);
+localStorage.setItem('playerName', myName);
+const nameInput = document.getElementById('name');
+if (nameInput) nameInput.value = myName;
+startHeartbeat();  
   });
 };
 
@@ -144,7 +144,7 @@ if (copyBtn) copyBtn.disabled = !code;
 socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers, hostId }) => {
   if (code !== currentRoom) return;
   // Halte den Host-Status lokal immer synchron (falls das youAreHost-Event verpasst wurde)
-  isHost = (myId === hostId);
+  isHost = (socket.id === hostId);
   
   
   $('playerCount').textContent = players.length;
@@ -156,7 +156,7 @@ socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers, hostId }) => {
 
 $('players').innerHTML = players.map(p => {
   const isHostPlayer = p.id === hostId;
-  const selfLabel = p.id === myId ? ' (Du)' : '';
+  const selfLabel = p.id === socket.id ? ' (Du)' : '';
   const botLabel = p.isBot ? ' (Bot)' : '';
 
   // Anspruchsvolles Host-Badge mit Krone (und Tooltip)
@@ -179,7 +179,12 @@ $('players').innerHTML = players.map(p => {
   
   // Start-Button nur für Host anzeigen und nur bei genug Spielern
   const minPlayers = gameMode === 'ki-bot' ? 1 : 3;
-  $('startGame').style.display = isHost && players.length >= minPlayers ? 'block' : 'none';
+const startBtn = $('startGame');
+if (startBtn) {
+  startBtn.style.display = (isHost && players.length >= minPlayers) ? '' : 'none';
+}
+
+
   
   // Loading indicator
   if (players.length < minPlayers) {
