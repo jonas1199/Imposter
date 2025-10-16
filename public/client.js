@@ -8,19 +8,22 @@ let secretRevealActive = false;
 let isHost = false;
 
 // Spielmodus auswählen
-window.selectMode = function(mode) {
+window.selectMode = function(mode, ev) {
   currentGameMode = mode;
-  
+
   document.querySelectorAll('.mode-option').forEach(opt => {
     opt.classList.remove('selected', 'local', 'ki-bot');
   });
-  
-  const selectedOption = event.currentTarget;
-  selectedOption.classList.add('selected');
-  selectedOption.classList.add(mode);
-  
+
+  const selectedOption = ev?.currentTarget;
+  if (selectedOption) {
+    selectedOption.classList.add('selected');
+    selectedOption.classList.add(mode);
+  }
+
   $('ki-bot-settings').classList.toggle('hidden', mode !== 'ki-bot');
 };
+
 
 // Startbildschirm anzeigen
 window.showStartScreen = function() {
