@@ -404,7 +404,13 @@ socket.on('connect', () => {
 
 // Verhindere Textauswahl außerhalb von Input-Feldern
 document.addEventListener('mousedown', (e) => {
-  if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'TEXTAREA') {
+  const tag = e.target.tagName;
+  const inSelectable = e.target.closest('.selectable');
+  const isFormField = (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || e.target.isContentEditable);
+
+  // Nur blockieren, wenn es kein Formularfeld und kein .selectable-Text ist
+  if (!isFormField && !inSelectable) {
     e.preventDefault();
   }
 });
+
