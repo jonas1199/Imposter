@@ -41,6 +41,13 @@ const WORD_PAIRS = [
 
 // Spielräume und Bot-Logik
 const rooms = new Map();
+
+// Globale Gnadenfrist (anpassbar)
+const GRACE_MS = 20000; // 20s
+
+// Globale Map: socketId -> Timeout (wird im 'disconnect' gesetzt)
+const disconnectTimers = new Map();
+
 const botNames = ["Alex", "Mia", "Finn", "Lena", "Ben", "Emma", "Paul", "Hannah"];
 
 // Hilfsfunktionen
@@ -159,9 +166,6 @@ io.on("connection", (socket) => {
       roundActive: false,
       crewWord: null,
       imposterWord: null
-      // ⬇️ NEU: Reconnect-Helfer
-  disconnectTimers: new Map(),   // socketId -> timeout
-  graceMs: 20000                 // 20s Gnadenfrist (anpassbar)
     });
 
     // Host hinzufügen
