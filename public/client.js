@@ -116,7 +116,6 @@ $('joinRoom').onclick = () => {
       alert(res.error);
       return;
     }
-    startHeartbeat(); // ← HIER
     currentRoom = code;
     isHost = false;
     $('start').classList.add('hidden');
@@ -151,7 +150,7 @@ socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers, hostId }) => {
 
 $('players').innerHTML = players.map(p => {
   const isHostPlayer = p.id === hostId;
-  const selfLabel = p.id === socket.id ? ' (Du)' : '';
+  const selfLabel = p.id === myId ? ' (Du)' : '';
   const botLabel = p.isBot ? ' (Bot)' : '';
 
   // Anspruchsvolles Host-Badge mit Krone (und Tooltip)
@@ -475,6 +474,11 @@ socket.on('connect', () => {
   console.log('Verbunden mit ID:', myId);
 });
 
+socket.on('disconnect', () => {
+  stopHeartbeat();
+});
+
+
 // C6: Auto-Rejoin nach Refresh
 (() => {
   const savedCode = localStorage.getItem('roomCode');
@@ -512,7 +516,9 @@ socket.on('connect', () => {
       $('lobby')?.classList.add('hidden');
       $('start')?.classList.remove('hidden');
       currentRoom = null; // sauber zurücksetzen
+      return;
     }
+    startHeartbeat();
   });
 })();
 
