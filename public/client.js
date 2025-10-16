@@ -464,34 +464,37 @@ socket.on('connect', () => {
 
   if (!savedCode) return;
 
+  // 🔥 WICHTIG: Raum zuerst lokal setzen, damit lobbyUpdate nicht weggefiltert wird
+  currentRoom = savedCode;
+
   // UI optimistisch auf Lobby schalten
   $('start')?.classList.add('hidden');
   $('lobby')?.classList.remove('hidden');
 
   if ($('roomCode')) $('roomCode').textContent = savedCode;
 
-  // ↓↓↓ HIER EINFÜGEN (Copy-Button aktivieren & Zustand zurücksetzen) ↓↓↓
+  // Copy-Button aktivieren & Zustand resetten (falls vorhanden)
   const copyBtn = document.getElementById('copyRoomCode');
   if (copyBtn) {
-    copyBtn.disabled = !savedCode;   // aktivieren, wenn es einen Code gibt
-    copyBtn.classList.remove('copied'); // evtl. alten Zustand entfernen
+    copyBtn.disabled = !savedCode;
+    copyBtn.classList.remove('copied');
   }
-  // ↑↑↑ ENDE DER EINFÜGUNG ↑↑↑
 
-  $('gameMode') && ($('gameMode').textContent = 'Lokales Spiel'); // wird ggf. durch lobbyUpdate überschrieben
+  $('gameMode') && ($('gameMode').textContent = 'Lokales Spiel'); // wird vom nächsten lobbyUpdate überschrieben
   $('loading')?.classList.remove('hidden');
 
   // Erneut dem Raum beitreten
   socket.emit('joinRoom', { code: savedCode, name: savedName }, (res) => {
     if (res?.error) {
-      // Falls Raum nicht mehr existiert o.ä. → zurück zum Start
       console.warn('Auto-Rejoin fehlgeschlagen:', res.error);
       localStorage.removeItem('roomCode');
       $('lobby')?.classList.add('hidden');
       $('start')?.classList.remove('hidden');
+      currentRoom = null; // sauber zurücksetzen
     }
   });
 })();
+
 
 
 // Verhindere Textauswahl außerhalb von Input-Feldern
