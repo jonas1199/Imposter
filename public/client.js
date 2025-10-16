@@ -400,9 +400,15 @@ socket.on('playerLeft', ({ playerId, playerName }) => {
 // Neuer Host erkannt
 socket.on('youAreHost', () => {
   isHost = true;
-  alert('👑 Du bist jetzt der neue Host!');
   $('adminPanel')?.classList.remove('hidden');
+
+  const note = document.createElement('div');
+  note.className = 'message system';
+  note.innerHTML = '👑 Du bist jetzt der <strong>Host</strong>. Du kannst die nächste Runde starten.';
+  $('messages')?.appendChild(note);
+  $('messages')?.scrollTo(0, $('messages').scrollHeight);
 });
+
 
 
 socket.on('errorMsg', (msg) => {
