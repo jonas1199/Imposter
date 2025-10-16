@@ -483,4 +483,17 @@ document.addEventListener('mousedown', (e) => {
   }
 })();
 
+// Auswahl (Textmarkierung) entfernen, wenn außerhalb von .selectable geklickt wird
+document.addEventListener('click', (e) => {
+  const tag = e.target.tagName;
+  const inSelectable = e.target.closest('.selectable');
+  const isFormField = (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || e.target.isContentEditable);
+  const isClickTarget = !!e.target.closest('button, .clickable, a, [role="button"]');
+
+  // Nur wenn wir NICHT in selektierbarem Text / Formularfeld / Button/Link sind → Auswahl entfernen
+  if (!inSelectable && !isFormField && !isClickTarget) {
+    const sel = window.getSelection?.();
+    if (sel?.removeAllRanges) sel.removeAllRanges();
+  }
+});
 
