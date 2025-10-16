@@ -9,11 +9,22 @@ let isHost = false;
 
 // Spielmodus auswählen
 window.selectMode = function(mode, ev) {
-  currentGameMode = mode;
+  const wasSame = (currentGameMode === mode);
 
+  // 1) Alle Buttons zurücksetzen
   document.querySelectorAll('.mode-option').forEach(opt => {
     opt.classList.remove('selected', 'local', 'ki-bot');
   });
+
+  if (wasSame) {
+    // 2) Gleichen Button erneut geklickt → abwählen
+    currentGameMode = null;
+    $('ki-bot-settings').classList.add('hidden');
+    return;
+  }
+
+  // 3) Neuen Modus setzen
+  currentGameMode = mode;
 
   const selectedOption = ev?.currentTarget;
   if (selectedOption) {
@@ -21,8 +32,10 @@ window.selectMode = function(mode, ev) {
     selectedOption.classList.add(mode);
   }
 
+  // 4) KI-Settings nur bei KI-Bot zeigen
   $('ki-bot-settings').classList.toggle('hidden', mode !== 'ki-bot');
 };
+
 
 
 // Startbildschirm anzeigen
