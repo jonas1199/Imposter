@@ -105,6 +105,12 @@ button, .clickable { cursor: pointer !important; }
       border: 3px solid transparent;
       position: relative;
       overflow: hidden;
+        /* verhindert Markieren von Text in den Mode-Kacheln */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+
     }
 
     .mode-option::before {
