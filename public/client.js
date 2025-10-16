@@ -452,49 +452,58 @@ document.addEventListener('mousedown', (e) => {
 
 
 // Kopieren-Button: Raumcode markieren & kopieren
+// Kopieren-Button: Raumcode direkt in die Zwischenablage (ohne Markieren)
 (function setupCopyRoomCode(){
   const btn = document.getElementById('copyRoomCode');
   const codeEl = document.getElementById('roomCode');
   if (!btn || !codeEl) return;
 
   btn.addEventListener('click', async () => {
-    try {
-      // 1) Text im roomCode-Span markieren
-      const range = document.createRange();
-      range.selectNodeContents(codeEl);
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(range);
+    const text = (codeEl.textContent || '').trim();
+    let ok = false;
 
-      // 2) In die Zwischenablage kopieren (moderne API mit Fallback)
-      const text = codeEl.textContent.trim();
-      try {
-        await navigator.clipboard.writeText(text);
-        feedback(true);
-      } catch {
-        const ok = document.execCommand && document.execCommand('copy');
-        feedback(!!ok);
-      }
+    // 1) Moderne Clipboard API
+    try {
+      await navigator.clipboard.writeText(text);
+      ok = true;
     } catch {
-      feedback(false);
+      // 2) Fallback: temporäres Textarea
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        ok = document.execCommand && document.execCommand('copy');
+        document.body.removeChild(ta);
+      } catch {
+        ok = false;
+      }
     }
+
+    feedback(ok);
   });
 
   function feedback(success){
-    // Visuelles Feedback am Button
+    // Icon zu Häkchen wechseln + Aria-Label anpassen
     btn.classList.add('copied');
     btn.setAttribute('aria-label', success ? 'Kopiert!' : 'Kopieren fehlgeschlagen');
-    // Code kurz highlighten
-    codeEl.classList.add('highlight');
+    btn.title = success ? 'Kopiert!' : 'Kopieren fehlgeschlagen';
+
+    // Textauswahl sicher entfernen (falls vom Fallback selektiert)
+    const sel = window.getSelection?.();
+    if (sel?.removeAllRanges) sel.removeAllRanges();
 
     setTimeout(() => {
       btn.classList.remove('copied');
       btn.setAttribute('aria-label', 'Raumcode kopieren');
-      window.getSelection()?.removeAllRanges();
-      codeEl.classList.remove('highlight');
-    }, 1000);
+      btn.title = 'Raumcode kopieren';
+    }, 900);
   }
 })();
+
 
 // Auswahl (Textmarkierung) entfernen, wenn außerhalb von .selectable geklickt wird
 document.addEventListener('click', (e) => {
