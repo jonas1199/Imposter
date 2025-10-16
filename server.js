@@ -159,6 +159,9 @@ io.on("connection", (socket) => {
       roundActive: false,
       crewWord: null,
       imposterWord: null
+      // ⬇️ NEU: Reconnect-Helfer
+  disconnectTimers: new Map(),   // socketId -> timeout
+  graceMs: 20000                 // 20s Gnadenfrist (anpassbar)
     });
 
     // Host hinzufügen
@@ -195,25 +198,65 @@ io.on("connection", (socket) => {
     io.to(code).emit("lobbyUpdate", publicState(code));
   });
 
-  // Raum beitreten (nur für Local-Modus)
   socket.on("joinRoom", ({ code, name }, cb) => {
-    const room = rooms.get(code);
-    if (!room) return cb?.({ error: "Raum nicht gefunden." });
-    if (room.gameMode !== "local") return cb?.({ error: "Dieser Raum ist nicht für manuelle Spieler." });
-    if (room.started) return cb?.({ error: "Das Spiel hat bereits begonnen." });
-    if (room.players.size >= room.maxPlayers) return cb?.({ error: `Maximal ${room.maxPlayers} Spieler erlaubt.` });
+  const room = rooms.get(code);
+  if (!room) return cb?.({ error: "Raum nicht gefunden." });
+  if (room.gameMode !== "local") return cb?.({ error: "Dieser Raum ist nicht für manuelle Spieler." });
 
-    room.players.set(socket.id, { 
-      name: name || "Gast", 
-      role: "crew", 
-      isBot: false, 
-      id: socket.id 
-    });
+  const playerName = name || "Gast";
+
+  // ⬇️ Rejoin-Fall: Spieler mit gleichem Namen existiert noch (alter socketId-Eintrag)
+  const existingEntry = Array.from(room.players.entries()).find(([pid, p]) =>
+    !p.isBot && p.name === playerName
+  );
+
+  if (existingEntry) {
+    const [oldSocketId, oldPlayer] = existingEntry;
+
+    // Gnadenfrist-Timer für den alten Socket abbrechen (falls gesetzt)
+    const oldTimer = room.disconnectTimers.get(oldSocketId);
+    if (oldTimer) {
+      clearTimeout(oldTimer);
+      room.disconnectTimers.delete(oldSocketId);
+    }
+
+    // Spieler-Eintrag auf die neue socket.id umziehen
+    room.players.delete(oldSocketId);
+    oldPlayer.id = socket.id;
+    room.players.set(socket.id, oldPlayer);
+
+    // Raum beitreten
     socket.join(code);
-    console.log(`Spieler ${name} hat Raum ${code} betreten`);
-    cb?.({ ok: true });
+
+    // Host beibehalten, falls er es war
+    if (room.hostId === oldSocketId) {
+      room.hostId = socket.id;
+      io.to(socket.id).emit("youAreHost");
+    }
+
+    console.log(`Rejoin: ${playerName} hat alte id=${oldSocketId} auf neue id=${socket.id} übernommen (Raum ${code})`);
+    cb?.({ ok: true, rejoined: true });
     io.to(code).emit("lobbyUpdate", publicState(code));
+    return;
+  }
+
+  // ⬇️ Normaler Join (kein Rejoin-Fall)
+  if (room.started) return cb?.({ error: "Das Spiel hat bereits begonnen." });
+  if (room.players.size >= room.maxPlayers) return cb?.({ error: `Maximal ${room.maxPlayers} Spieler erlaubt.` });
+
+  room.players.set(socket.id, { 
+    name: playerName, 
+    role: "crew", 
+    isBot: false, 
+    id: socket.id 
   });
+  socket.join(code);
+
+  console.log(`Spieler ${playerName} hat Raum ${code} betreten`);
+  cb?.({ ok: true });
+  io.to(code).emit("lobbyUpdate", publicState(code));
+});
+
 
   // Spiel starten
   socket.on("startGame", ({ code }) => {
@@ -485,39 +528,53 @@ io.on("connection", (socket) => {
 
 
 
-  // Disconnect
-  socket.on("disconnect", () => {
+  // Disconnect mit Gnadenfrist
+socket.on("disconnect", () => {
   console.log('Verbindung getrennt:', socket.id);
 
   for (const [code, room] of rooms) {
     if (!room.players.has(socket.id)) continue;
 
     const player = room.players.get(socket.id);
-    console.log(`Spieler ${player?.name} disconnected von Raum ${code}`);
-    room.players.delete(socket.id);
+    console.log(`Spieler ${player?.name} (id=${socket.id}) hat getrennt – Gnadenfrist läuft in Raum ${code}`);
 
-    io.to(code).emit("playerLeft", { playerId: socket.id, playerName: player?.name });
+    // ⬇️ Timer setzen statt sofort zu löschen
+    const t = setTimeout(() => {
+      // Wenn der Spieler inzwischen rejoined und sein alter Eintrag verschoben wurde,
+      // existiert der alte socketId-Eintrag nicht mehr – dann nichts tun.
+      if (!room.players.has(socket.id)) {
+        room.disconnectTimers.delete(socket.id);
+        return;
+      }
 
-    // Wenn Raum leer → löschen und Schleife beenden
-    if (room.players.size === 0) {
-      rooms.delete(code);
-      console.log(`Raum ${code} gelöscht (leer)`);
-      break;
-    }
+      // Jetzt wirklich entfernen
+      room.players.delete(socket.id);
+      room.disconnectTimers.delete(socket.id);
 
-    // 👑 Hostwechsel falls nötig
-    if (socket.id === room.hostId) {
-      const nextHostId = Array.from(room.players.keys())[0];
-      room.hostId = nextHostId;
-      console.log(`Neuer Host in Raum ${code}: ${room.players.get(nextHostId)?.name}`);
-      io.to(nextHostId).emit("youAreHost");
-    }
+      io.to(code).emit("playerLeft", { playerId: socket.id, playerName: player?.name });
 
-    // Ein einziges Update danach
-    io.to(code).emit("lobbyUpdate", publicState(code));
+      if (room.players.size === 0) {
+        rooms.delete(code);
+        console.log(`Raum ${code} gelöscht (leer)`);
+        return;
+      }
+
+      // 👑 Hostwechsel falls nötig
+      if (socket.id === room.hostId) {
+        const nextHostId = Array.from(room.players.keys())[0];
+        room.hostId = nextHostId;
+        console.log(`Neuer Host in Raum ${code}: ${room.players.get(nextHostId)?.name}`);
+        io.to(nextHostId).emit("youAreHost");
+      }
+
+      io.to(code).emit("lobbyUpdate", publicState(code));
+    }, room.graceMs || 20000);
+
+    room.disconnectTimers.set(socket.id, t);
     break;
   }
 });
+
 
 
 });
