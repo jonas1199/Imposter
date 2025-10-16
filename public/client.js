@@ -7,6 +7,22 @@ let myId = null;
 let secretRevealActive = false;
 let isHost = false;
 
+// Heartbeat (für Auto-Kick/Inaktivität)
+let hbInterval = null;
+
+function startHeartbeat() {
+  if (hbInterval) return;                 // schon aktiv
+  hbInterval = setInterval(() => {
+    try { socket.emit('heartbeat'); } catch {}
+  }, 10000);                               // alle 10s
+}
+
+function stopHeartbeat() {
+  if (!hbInterval) return;
+  clearInterval(hbInterval);
+  hbInterval = null;
+}
+
 // Spielmodus auswählen
 window.selectMode = function(mode, ev) {
   const wasSame = (currentGameMode === mode);
@@ -81,6 +97,7 @@ if (copyBtn) copyBtn.disabled = !code;
         // C6: Nach Erfolg im localStorage merken
     localStorage.setItem('roomCode', code);
     localStorage.setItem('playerName', myName);
+    startHeartbeat();   // <— NEU
   });
 };
 
@@ -99,6 +116,7 @@ $('joinRoom').onclick = () => {
       alert(res.error);
       return;
     }
+    startHeartbeat(); // ← HIER
     currentRoom = code;
     isHost = false;
     $('start').classList.add('hidden');
@@ -112,6 +130,8 @@ if (copyBtn) copyBtn.disabled = !code;
       // C6: Nach Erfolg im localStorage merken
   localStorage.setItem('roomCode', code);
   localStorage.setItem('playerName', myName);
+  startHeartbeat();   // <— NEU
+
   });
 };
 
@@ -393,6 +413,7 @@ window.confirmLeave = function() {
   localStorage.removeItem('roomCode');
   localStorage.removeItem('playerName');
 
+  stopHeartbeat(); // ← HIER stoppen
   hideConfirmation();
   showStartScreen();
 };
