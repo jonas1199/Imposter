@@ -73,6 +73,8 @@ $('createRoom').onclick = () => {
     $('start').classList.add('hidden');
     $('lobby').classList.remove('hidden');
     $('roomCode').textContent = code;
+    const copyBtn = document.getElementById('copyRoomCode');
+if (copyBtn) copyBtn.disabled = !code;
     $('gameMode').textContent = currentGameMode === 'ki-bot' ? 'KI-Bot Modus (BETA)' : 'Lokales Spiel';
     $('loading').classList.remove('hidden');
 
@@ -102,6 +104,8 @@ $('joinRoom').onclick = () => {
     $('start').classList.add('hidden');
     $('lobby').classList.remove('hidden');
     $('roomCode').textContent = code;
+    const copyBtn = document.getElementById('copyRoomCode');
+if (copyBtn) copyBtn.disabled = !code;
     $('gameMode').textContent = 'Lokales Spiel';
     $('loading').classList.remove('hidden');
 
@@ -385,9 +389,14 @@ window.confirmLeave = function() {
   if (currentRoom) {
     socket.emit('leaveGame', { code: currentRoom });
   }
+  // C7: localStorage aufräumen, damit C6 nicht erneut joint
+  localStorage.removeItem('roomCode');
+  localStorage.removeItem('playerName');
+
   hideConfirmation();
   showStartScreen();
 };
+
 
 // Nächste Runde starten
 window.nextRound = function() {
@@ -458,7 +467,17 @@ socket.on('connect', () => {
   // UI optimistisch auf Lobby schalten
   $('start')?.classList.add('hidden');
   $('lobby')?.classList.remove('hidden');
+
   if ($('roomCode')) $('roomCode').textContent = savedCode;
+
+  // ↓↓↓ HIER EINFÜGEN (Copy-Button aktivieren & Zustand zurücksetzen) ↓↓↓
+  const copyBtn = document.getElementById('copyRoomCode');
+  if (copyBtn) {
+    copyBtn.disabled = !savedCode;   // aktivieren, wenn es einen Code gibt
+    copyBtn.classList.remove('copied'); // evtl. alten Zustand entfernen
+  }
+  // ↑↑↑ ENDE DER EINFÜGUNG ↑↑↑
+
   $('gameMode') && ($('gameMode').textContent = 'Lokales Spiel'); // wird ggf. durch lobbyUpdate überschrieben
   $('loading')?.classList.remove('hidden');
 
@@ -473,6 +492,7 @@ socket.on('connect', () => {
     }
   });
 })();
+
 
 // Verhindere Textauswahl außerhalb von Input-Feldern
 document.addEventListener('mousedown', (e) => {
