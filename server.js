@@ -485,21 +485,35 @@ io.on("connection", (socket) => {
 
   // Disconnect
   socket.on("disconnect", () => {
-    console.log('Verbindung getrennt:', socket.id);
-    for (const [code, room] of rooms) {
-      if (room.players.has(socket.id)) {
-        const player = room.players.get(socket.id);
-        console.log(`Spieler ${player?.name} disconnected von Raum ${code}`);
-        room.players.delete(socket.id);
-        io.to(code).emit("lobbyUpdate", publicState(code));
-        if (room.players.size === 0) {
-          rooms.delete(code);
-          console.log(`Raum ${code} gelöscht (leer)`);
-        }
+  console.log('Verbindung getrennt:', socket.id);
+  for (const [code, room] of rooms) {
+    if (room.players.has(socket.id)) {
+      const player = room.players.get(socket.id);
+      console.log(`Spieler ${player?.name} disconnected von Raum ${code}`);
+      room.players.delete(socket.id);
+
+      io.to(code).emit("playerLeft", { playerId: socket.id, playerName: player.name });
+      io.to(code).emit("lobbyUpdate", publicState(code));
+
+      // Wenn Raum leer → löschen
+      if (room.players.size === 0) {
+        rooms.delete(code);
+        console.log(`Raum ${code} gelöscht (leer)`);
         break;
       }
+
+      // Wenn Host disconnected → neuen Host bestimmen
+      if (socket.id === room.hostId) {
+        const nextHostId = Array.from(room.players.keys())[0];
+        room.hostId = nextHostId;
+        console.log(`Neuer Host in Raum ${code}: ${room.players.get(nextHostId)?.name}`);
+        io.to(nextHostId).emit("youAreHost");
+        io.to(code).emit("lobbyUpdate", publicState(code));
+      }
+      break;
     }
-  });
+  }
+});
 });
 
 // WICHTIG: Port aus Umgebungsvariable lesen für Render
