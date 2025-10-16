@@ -459,6 +459,7 @@ io.on("connection", (socket) => {
       console.log(`Spieler ${playerName} hat Raum ${code} verlassen`);
       io.to(code).emit("playerLeft", { playerId: socket.id, playerName });
       socket.leave(code);
+      io.to(code).emit("lobbyUpdate", publicState(code));
       
       // Raum löschen wenn leer
       if (room.players.size === 0) {
