@@ -68,7 +68,7 @@ $('joinRoom').onclick = () => {
   const code = $('joinCode').value.trim().toUpperCase();
   
   if (!code) {
-    alert('Bitte gib einen Raumbcode ein!');
+    alert('Bitte gib einen Raummcode ein!');
     return;
   }
   
