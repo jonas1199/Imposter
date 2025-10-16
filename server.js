@@ -77,6 +77,7 @@ function publicState(code) {
     players: publicPlayers(code),
     gameMode: room.gameMode,
     maxPlayers: room.maxPlayers
+    hostId: room.hostId
   };
 }
 
