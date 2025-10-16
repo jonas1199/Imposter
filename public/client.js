@@ -97,19 +97,32 @@ socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers, hostId }) => {
   $('playerCount').textContent = players.length;
   $('maxPlayers').textContent = maxPlayers;
 
-  $('players').innerHTML = players.map(p => {
-  const isHostPlayer = p.id === hostId; // ← Host sauber erkennen
-  const hostLabel = isHostPlayer ? ' <span class="host-badge">👑 (Host)</span>' : '';
+  // (Optional) Host nach vorne sortieren – nur Anzeige, keine Server-Änderung
+// → Wenn du NICHT sortieren willst, lösche die nächste Zeile einfach.
+players = [...players].sort((a, b) => (a.id === hostId ? -1 : b.id === hostId ? 1 : 0));
+
+$('players').innerHTML = players.map(p => {
+  const isHostPlayer = p.id === hostId;
   const selfLabel = p.id === myId ? ' (Du)' : '';
   const botLabel = p.isBot ? ' (Bot)' : '';
 
+  // Anspruchsvolles Host-Badge mit Krone (und Tooltip)
+  const hostBadge = isHostPlayer
+    ? `<span class="host-badge" title="Spielleiter">
+         <span class="crown">👑</span> Host
+       </span>`
+    : '';
+
+  // li bekommt zusätzliche Klasse 'host' für die spezielle Karte
   return `
-    <li class="${p.isBot ? 'bot' : ''}">
+    <li class="${p.isBot ? 'bot' : ''} ${isHostPlayer ? 'host' : ''}">
       <span class="player-icon">${p.isBot ? '🤖' : '👤'}</span>
-      ${p.name}${botLabel}${selfLabel}${hostLabel}
+      <span class="player-name">${p.name}${botLabel}${selfLabel}</span>
+      ${hostBadge}
     </li>
   `;
 }).join('');
+
   
   // Start-Button nur für Host anzeigen und nur bei genug Spielern
   const minPlayers = gameMode === 'ki-bot' ? 1 : 3;
