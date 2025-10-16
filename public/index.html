@@ -26,6 +26,31 @@
 
     button, .clickable { cursor: pointer; }
     input, select, textarea { cursor: text; }
+    /* Zeige den I-Beam über typischen Textelementen –
+   die Auswahl bleibt global gesperrt (body { user-select: none; }) */
+h1, h2, h3, h4, h5, h6,
+p, li, label, strong, em, small,
+.subtitle, .game-info, .footer,
+.player-name, .message, .player-list li {
+  cursor: text;
+}
+
+/* Buttons & echte Click-Ziele bleiben Pointer */
+button, .clickable { cursor: pointer !important; }
+
+/* Nur dort darf tatsächlich markiert/kopiert werden */
+.selectable {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  cursor: text;
+}
+
+/* Optional: dezente Optik für kopierbaren Text (z. B. Raumcode) */
+.copyable { border-bottom: 1px dotted rgba(0,0,0,0.25); }
+.copyable:hover { border-bottom-color: rgba(0,0,0,0.45); }
+
 
     /* Nur explizit freigegebene Bereiche dürfen markiert/kopiert werden */
     .selectable {
