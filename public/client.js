@@ -26,23 +26,17 @@ function stopHeartbeat() {
   hbInterval = null;
 }
 
-/* ============================
-   Mode-Auswahl
-   ============================ */
-// --- NEUE MODUSWAHL ---
-// gültige Modi: 'online' und 'single'
 window.selectMode = function(mode, ev) {
   const wasSame = (currentGameMode === mode);
 
   // 1) Optik zurücksetzen
   document.querySelectorAll('.mode-option').forEach(opt => {
-    opt.classList.remove('selected', 'online', 'single');
+    opt.classList.remove('selected', 'local', 'single');
   });
 
   // 2) Gleiches Kachel erneut → abwählen und Startbildschirm zeigen
   if (wasSame) {
     currentGameMode = null;
-    // Sichtbarkeit
     document.getElementById('start')?.classList.remove('hidden');
     document.getElementById('lobby')?.classList.add('hidden');
     document.getElementById('game')?.classList.add('hidden');
@@ -54,19 +48,16 @@ window.selectMode = function(mode, ev) {
   // 3) Modus setzen & Kachel markieren
   currentGameMode = mode;
   const selectedOption = ev?.currentTarget;
-  if (selectedOption) {
-    selectedOption.classList.add('selected', mode);
-  }
+  if (selectedOption) selectedOption.classList.add('selected', mode);
 
   // 4) Sichtbarkeit je Modus
-  if (mode === 'online') {
-    // nur Startscreen sichtbar lassen; Nutzer klickt dann auf „Raum erstellen“ oder „Raum beitreten“
+  if (mode === 'local') {
+    // Mehrgeräte/Online: auf Start bleiben; Nutzer erstellt/ joined selbst
     document.getElementById('start')?.classList.remove('hidden');
     document.getElementById('sd-setup')?.classList.add('hidden');
     document.getElementById('sd-flow')?.classList.add('hidden');
-    // keine Lobby automatisch öffnen!
   } else if (mode === 'single') {
-    // Single-Device Setup anzeigen (eigener Flow, KEINE Online-Lobby)
+    // Ein Handy: eigenes Setup anzeigen, NICHT die Lobby
     document.getElementById('start')?.classList.add('hidden');
     document.getElementById('lobby')?.classList.add('hidden');
     document.getElementById('game')?.classList.add('hidden');
@@ -74,6 +65,7 @@ window.selectMode = function(mode, ev) {
     document.getElementById('sd-flow')?.classList.add('hidden');
   }
 };
+
 
 
 /* ============================
@@ -147,6 +139,12 @@ $('createRoom')?.addEventListener('click', () => {
    Raum beitreten (nur local)
    ============================ */
 $('joinRoom')?.addEventListener('click', () => {
+  // Nur im Mehrgeräte/Local-Modus erlaubt
+  if (currentGameMode !== 'local') {
+    alert('„Raum beitreten“ gibt es nur im Mehrgeräte-Modus. Für „Ein Handy“ bitte eigene Namen im Setup eingeben.');
+    return;
+  }
+
   const myName = $('name')?.value.trim() || 'Gast';
   const code = $('joinCode')?.value.trim().toUpperCase();
 
@@ -183,6 +181,7 @@ $('joinRoom')?.addEventListener('click', () => {
   });
 });
 
+
 /* ============================
    Lobby-Updates
    ============================ */
@@ -217,26 +216,26 @@ socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers, hostId }) => {
     }).join('');
   }
 
-  // Buttons abhängig vom Modus
-  const startBtn   = $('startGame');   // local
-  const singleBtn  = $('startSingle'); // single
-  const minPlayers = 3;
+const startBtn   = $('startGame');   // für local
+const singleBtn  = $('startSingle'); // für single
+const minPlayers = 3;
 
-  if (gameMode === 'local') {
-    if (startBtn) startBtn.style.display = (isHost && players.length >= minPlayers) ? '' : 'none';
-    if (singleBtn) singleBtn.style.display = 'none';
-  } else {
-    if (singleBtn) singleBtn.style.display = isHost ? '' : 'none';
-    if (startBtn)  startBtn.style.display  = 'none';
-  }
+if (gameMode === 'local') {
+  if (startBtn) startBtn.style.display = (isHost && players.length >= minPlayers) ? '' : 'none';
+  if (singleBtn) singleBtn.style.display = 'none';
+} else {
+  if (singleBtn) singleBtn.style.display = isHost ? '' : 'none';
+  if (startBtn)  startBtn.style.display  = 'none';
+}
 
-  // Loading-Indicator nur im local-Modus nutzen
-  if (gameMode === 'local') {
-    if (players.length < minPlayers) $('loading')?.classList.remove('hidden');
-    else $('loading')?.classList.add('hidden');
-  } else {
-    $('loading')?.classList.add('hidden');
-  }
+// Loading-Indicator nur im local-Modus
+if (gameMode === 'local') {
+  if (players.length < minPlayers) $('loading')?.classList.remove('hidden');
+  else $('loading')?.classList.add('hidden');
+} else {
+  $('loading')?.classList.add('hidden');
+}
+
 });
 
 /* ============================
