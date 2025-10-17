@@ -218,16 +218,16 @@
         </div>
       </div>
 
-      <!-- Ein-Gerät: Namen erfassen -->
-      <div id="single-device-setup" class="hidden">
-        <h3>Spielernamen</h3>
-        <div class="input-group" style="display:flex; gap:8px; align-items:center;">
-          <input id="sd-name-input" placeholder="Name hinzufügen" />
-          <button id="sd-add-name" style="width:auto; white-space:nowrap;">+ Hinzufügen</button>
-        </div>
-        <ul id="sd-name-list" class="sd-list"></ul>
-        <button id="sd-start" class="secondary">Spiel starten (ein Gerät)</button>
-      </div>
+<div id="sd-setup" class="hidden">
+  <h3>Spielernamen (je Zeile ein Name)</h3>
+  <div class="input-group">
+    <textarea id="singleNames" rows="8" placeholder="Anna
+Ben
+Chris"></textarea>
+  </div>
+  <button id="startSingle" class="secondary">Spiel starten (ein Gerät)</button>
+</div>
+
 
       <!-- Online: Name + Raum erstellen -->
       <div class="input-group">
@@ -280,7 +280,7 @@
       <div id="sd-flow" class="game-info hidden">
         <h3>📱 Weitergeben</h3>
         <p>Nächster Spieler: <strong id="sd-current-name">–</strong></p>
-        <button id="sd-pass" style="margin-top:10px;">Weitergeben ▶</button>
+        <button id="passDevice" style="margin-top:10px;">Weitergeben ▶</button>
       </div>
 
       <div class="role-display">
