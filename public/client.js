@@ -29,30 +29,52 @@ function stopHeartbeat() {
 /* ============================
    Mode-Auswahl
    ============================ */
-window.selectMode = function(mode, ev){
+// --- NEUE MODUSWAHL ---
+// gültige Modi: 'online' und 'single'
+window.selectMode = function(mode, ev) {
   const wasSame = (currentGameMode === mode);
 
-  document.querySelectorAll('.mode-option')?.forEach(opt => {
-    opt.classList.remove('selected', 'local', 'single');
+  // 1) Optik zurücksetzen
+  document.querySelectorAll('.mode-option').forEach(opt => {
+    opt.classList.remove('selected', 'online', 'single');
   });
 
-  if (wasSame){
+  // 2) Gleiches Kachel erneut → abwählen und Startbildschirm zeigen
+  if (wasSame) {
     currentGameMode = null;
-    $('single-setup')?.classList.add('hidden'); // Bereich für Ein-Handy-Setup
+    // Sichtbarkeit
+    document.getElementById('start')?.classList.remove('hidden');
+    document.getElementById('lobby')?.classList.add('hidden');
+    document.getElementById('game')?.classList.add('hidden');
+    document.getElementById('sd-setup')?.classList.add('hidden');
+    document.getElementById('sd-flow')?.classList.add('hidden');
     return;
   }
 
+  // 3) Modus setzen & Kachel markieren
   currentGameMode = mode;
-
-  const btn = ev?.currentTarget;
-  if (btn){
-    btn.classList.add('selected');
-    btn.classList.add(mode);
+  const selectedOption = ev?.currentTarget;
+  if (selectedOption) {
+    selectedOption.classList.add('selected', mode);
   }
 
-  // Nur im single-Modus den Namen-Editor anzeigen
-  $('single-setup')?.classList.toggle('hidden', mode !== 'single');
+  // 4) Sichtbarkeit je Modus
+  if (mode === 'online') {
+    // nur Startscreen sichtbar lassen; Nutzer klickt dann auf „Raum erstellen“ oder „Raum beitreten“
+    document.getElementById('start')?.classList.remove('hidden');
+    document.getElementById('sd-setup')?.classList.add('hidden');
+    document.getElementById('sd-flow')?.classList.add('hidden');
+    // keine Lobby automatisch öffnen!
+  } else if (mode === 'single') {
+    // Single-Device Setup anzeigen (eigener Flow, KEINE Online-Lobby)
+    document.getElementById('start')?.classList.add('hidden');
+    document.getElementById('lobby')?.classList.add('hidden');
+    document.getElementById('game')?.classList.add('hidden');
+    document.getElementById('sd-setup')?.classList.remove('hidden');
+    document.getElementById('sd-flow')?.classList.add('hidden');
+  }
 };
+
 
 /* ============================
    Startscreen / Screens
