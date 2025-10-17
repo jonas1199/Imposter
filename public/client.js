@@ -1,485 +1,474 @@
+/* ============================
+   Client – Imposter
+   Modi:
+   - local  : mehrere Geräte, normale Lobby
+   - single : ein Handy; Host gibt Namen ein, Rollen werden nacheinander angezeigt
+   ============================ */
+
 const socket = io();
 const $ = (id) => document.getElementById(id);
 
 let currentRoom = null;
-let currentGameMode = null;
+let currentGameMode = null;   // "local" | "single"
 let myId = null;
-let secretRevealActive = false;
 let isHost = false;
+let secretRevealActive = false;
 
-// Heartbeat (für Auto-Kick/Inaktivität)
+// Heartbeat (Auto-Kick/Inaktivität)
 let hbInterval = null;
-
 function startHeartbeat() {
-  if (hbInterval) return;                 // schon aktiv
-  hbInterval = setInterval(() => {
-    try { socket.emit('heartbeat'); } catch {}
-  }, 10000);                               // alle 10s
+  if (hbInterval) return;
+  hbInterval = setInterval(() => { try { socket.emit('heartbeat'); } catch {} }, 10000);
 }
-
 function stopHeartbeat() {
   if (!hbInterval) return;
   clearInterval(hbInterval);
   hbInterval = null;
 }
 
-// Spielmodus auswählen
-window.selectMode = function(mode, ev) {
+/* ============================
+   Mode-Auswahl
+   ============================ */
+window.selectMode = function(mode, ev){
   const wasSame = (currentGameMode === mode);
 
-  // 1) Alle Buttons zurücksetzen
-  document.querySelectorAll('.mode-option').forEach(opt => {
-    opt.classList.remove('selected', 'local', 'ki-bot');
+  document.querySelectorAll('.mode-option')?.forEach(opt => {
+    opt.classList.remove('selected', 'local', 'single');
   });
 
-  if (wasSame) {
-    // 2) Gleichen Button erneut geklickt → abwählen
+  if (wasSame){
     currentGameMode = null;
-    $('ki-bot-settings').classList.add('hidden');
+    $('single-setup')?.classList.add('hidden'); // Bereich für Ein-Handy-Setup
     return;
   }
 
-  // 3) Neuen Modus setzen
   currentGameMode = mode;
 
-  const selectedOption = ev?.currentTarget;
-  if (selectedOption) {
-    selectedOption.classList.add('selected');
-    selectedOption.classList.add(mode);
+  const btn = ev?.currentTarget;
+  if (btn){
+    btn.classList.add('selected');
+    btn.classList.add(mode);
   }
 
-  // 4) KI-Settings nur bei KI-Bot zeigen
-  $('ki-bot-settings').classList.toggle('hidden', mode !== 'ki-bot');
+  // Nur im single-Modus den Namen-Editor anzeigen
+  $('single-setup')?.classList.toggle('hidden', mode !== 'single');
 };
 
+/* ============================
+   Startscreen / Screens
+   ============================ */
+window.showStartScreen = function () {
+  $('start')?.classList.remove('hidden');
+  $('lobby')?.classList.add('hidden');
+  $('game')?.classList.add('hidden');
 
-
-// Startbildschirm anzeigen
-window.showStartScreen = function() {
-  $('start').classList.remove('hidden');
-  $('lobby').classList.add('hidden');
-  $('game').classList.add('hidden');
   currentRoom = null;
   myId = null;
   isHost = false;
-  
-  // Reset mode selection
-  document.querySelectorAll('.mode-option').forEach(opt => {
-    opt.classList.remove('selected', 'local', 'ki-bot');
+
+  document.querySelectorAll('.mode-option')?.forEach(opt => {
+    opt.classList.remove('selected', 'local', 'single');
   });
+
+  // Start-Buttons resetten
+  $('startGame') && ( $('startGame').style.display = 'none' );
+  $('startSingle') && ( $('startSingle').style.display = 'none' );
 };
 
-// Raum erstellen
-$('createRoom').onclick = () => {
-  const myName = $('name').value.trim() || "Gast";
-  const botCount = currentGameMode === 'ki-bot' ? parseInt($('botCount').value) : 0;
-  
+/* ============================
+   Raum erstellen
+   ============================ */
+$('createRoom')?.addEventListener('click', () => {
+  const myName = $('name')?.value.trim() || 'Gast';
+
   if (!currentGameMode) {
     alert('Bitte wähle zuerst einen Spielmodus aus!');
     return;
   }
-  
-  socket.emit('createRoom', { 
-    name: myName, 
-    gameMode: currentGameMode,
-    botCount: botCount
-  }, ({ code }) => {
+
+  socket.emit('createRoom', { name: myName, gameMode: currentGameMode }, ({ code }) => {
     currentRoom = code;
     isHost = true;
-    $('start').classList.add('hidden');
-    $('lobby').classList.remove('hidden');
-    $('roomCode').textContent = code;
-    const copyBtn = document.getElementById('copyRoomCode');
-if (copyBtn) copyBtn.disabled = !code;
-    $('gameMode').textContent = currentGameMode === 'ki-bot' ? 'KI-Bot Modus (BETA)' : 'Lokales Spiel';
-    $('loading').classList.remove('hidden');
 
-        // C6: Nach Erfolg im localStorage merken
-    // C6: Nach Erfolg im localStorage merken
-localStorage.setItem('roomCode', code);
-localStorage.setItem('playerName', myName);
-const nameInput = document.getElementById('name');
-if (nameInput) nameInput.value = myName;
-startHeartbeat();  
+    $('start')?.classList.add('hidden');
+    $('lobby')?.classList.remove('hidden');
+
+    if ($('roomCode')) $('roomCode').textContent = code;
+    const copyBtn = $('copyRoomCode');
+    if (copyBtn) copyBtn.disabled = !code;
+
+    $('gameMode') && ( $('gameMode').textContent = currentGameMode === 'single'
+      ? 'Ein Handy'
+      : 'Lokales Spiel'
+    );
+    $('loading')?.classList.remove('hidden');
+
+    // merken (für Auto-Rejoin – sinnvoll nur im local-Modus, schadet aber nicht)
+    localStorage.setItem('roomCode', code);
+    localStorage.setItem('playerName', myName);
+
+    // UI für Modi
+    if (currentGameMode === 'single') {
+      $('joinBlock')?.classList.add('hidden');  // Bereich „Raum beitreten“ ausblenden
+      $('single-setup')?.classList.remove('hidden');
+      $('startSingle') && ( $('startSingle').style.display = '' );
+      $('startGame') && ( $('startGame').style.display = 'none' );
+    } else {
+      $('joinBlock')?.classList.remove('hidden');
+    }
+
+    startHeartbeat();
   });
-};
+});
 
-// Raum beitreten
-$('joinRoom').onclick = () => {
-  const myName = $('name').value.trim() || "Gast";
-  const code = $('joinCode').value.trim().toUpperCase();
-  
+/* ============================
+   Raum beitreten (nur local)
+   ============================ */
+$('joinRoom')?.addEventListener('click', () => {
+  const myName = $('name')?.value.trim() || 'Gast';
+  const code = $('joinCode')?.value.trim().toUpperCase();
+
   if (!code) {
     alert('Bitte gib einen Raumcode ein!');
     return;
   }
-  
+
   socket.emit('joinRoom', { code, name: myName }, (res) => {
     if (res?.error) {
       alert(res.error);
       return;
     }
+
     currentRoom = code;
     isHost = false;
-    $('start').classList.add('hidden');
-    $('lobby').classList.remove('hidden');
-    $('roomCode').textContent = code;
-    const copyBtn = document.getElementById('copyRoomCode');
-if (copyBtn) copyBtn.disabled = !code;
-    $('gameMode').textContent = 'Lokales Spiel';
-    $('loading').classList.remove('hidden');
 
-      // C6: Nach Erfolg im localStorage merken
-  localStorage.setItem('roomCode', code);
-  const finalName = res?.assignedName || myName;
-  localStorage.setItem('playerName', finalName);
-  const nameInput = document.getElementById('name');
-  if (nameInput) nameInput.value = finalName;
-  startHeartbeat();   // <— NEU
+    $('start')?.classList.add('hidden');
+    $('lobby')?.classList.remove('hidden');
+    if ($('roomCode')) $('roomCode').textContent = code;
 
+    const copyBtn = $('copyRoomCode');
+    if (copyBtn) copyBtn.disabled = !code;
+
+    $('gameMode') && ( $('gameMode').textContent = 'Lokales Spiel' );
+    $('loading')?.classList.remove('hidden');
+
+    localStorage.setItem('roomCode', code);
+    const finalName = res?.assignedName || myName;
+    localStorage.setItem('playerName', finalName);
+    $('name') && ( $('name').value = finalName );
+
+    startHeartbeat();
   });
-};
+});
 
-// Lobby-Updates
+/* ============================
+   Lobby-Updates
+   ============================ */
 socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers, hostId }) => {
   if (code !== currentRoom) return;
-  // Halte den Host-Status lokal immer synchron (falls das youAreHost-Event verpasst wurde)
+
   isHost = (socket.id === hostId);
-  
-  
-  $('playerCount').textContent = players.length;
-  $('maxPlayers').textContent = maxPlayers;
 
-  // (Optional) Host nach vorne sortieren – nur Anzeige, keine Server-Änderung
-// → Wenn du NICHT sortieren willst, lösche die nächste Zeile einfach.
-//players = [...players].sort((a, b) => (a.id === hostId ? -1 : b.id === hostId ? 1 : 0));
+  $('playerCount') && ( $('playerCount').textContent = players.length );
+  $('maxPlayers') && ( $('maxPlayers').textContent = maxPlayers );
 
-$('players').innerHTML = players.map(p => {
-  const isHostPlayer = p.id === hostId;
-  const selfLabel = p.id === socket.id ? ' (Du)' : '';
-  const botLabel = p.isBot ? ' (Bot)' : '';
+  // Spielmodus beschriften
+  $('gameMode') && ( $('gameMode').textContent = (gameMode === 'single') ? 'Ein Handy' : 'Lokales Spiel' );
 
-  // Anspruchsvolles Host-Badge mit Krone (und Tooltip)
-  const hostBadge = isHostPlayer
-    ? `<span class="host-badge" title="Spielleiter">
-         <span class="crown">👑</span> Host
-       </span>`
-    : '';
+  // Liste rendern (bei single gibt es formal nur den Host – Anzeige ist ok)
+  if ($('players')) {
+    $('players').innerHTML = players.map(p => {
+      const isHostPlayer = p.id === hostId;
+      const selfLabel   = p.id === socket.id ? ' (Du)' : '';
 
-  // li bekommt zusätzliche Klasse 'host' für die spezielle Karte
-  return `
-    <li class="${p.isBot ? 'bot' : ''} ${isHostPlayer ? 'host' : ''}">
-      <span class="player-icon">${p.isBot ? '🤖' : '👤'}</span>
-      <span class="player-name">${p.name}${botLabel}${selfLabel}</span>
-      ${hostBadge}
-    </li>
-  `;
-}).join('');
+      const hostBadge = isHostPlayer
+        ? `<span class="host-badge" title="Spielleiter"><span class="crown">👑</span> Host</span>`
+        : '';
 
-  
-  // Start-Button nur für Host anzeigen und nur bei genug Spielern
-  const minPlayers = gameMode === 'ki-bot' ? 1 : 3;
-const startBtn = $('startGame');
-if (startBtn) {
-  startBtn.style.display = (isHost && players.length >= minPlayers) ? '' : 'none';
-}
+      return `
+        <li class="${isHostPlayer ? 'host' : ''}">
+          <span class="player-icon">👤</span>
+          <span class="player-name">${p.name}${selfLabel}</span>
+          ${hostBadge}
+        </li>
+      `;
+    }).join('');
+  }
 
+  // Buttons abhängig vom Modus
+  const startBtn   = $('startGame');   // local
+  const singleBtn  = $('startSingle'); // single
+  const minPlayers = 3;
 
-  
-  // Loading indicator
-  if (players.length < minPlayers) {
-    $('loading').classList.remove('hidden');
+  if (gameMode === 'local') {
+    if (startBtn) startBtn.style.display = (isHost && players.length >= minPlayers) ? '' : 'none';
+    if (singleBtn) singleBtn.style.display = 'none';
   } else {
-    $('loading').classList.add('hidden');
+    if (singleBtn) singleBtn.style.display = isHost ? '' : 'none';
+    if (startBtn)  startBtn.style.display  = 'none';
+  }
+
+  // Loading-Indicator nur im local-Modus nutzen
+  if (gameMode === 'local') {
+    if (players.length < minPlayers) $('loading')?.classList.remove('hidden');
+    else $('loading')?.classList.add('hidden');
+  } else {
+    $('loading')?.classList.add('hidden');
   }
 });
 
-// Spiel starten
-$('startGame').onclick = () => {
-  if (currentRoom) {
-    socket.emit('startGame', { code: currentRoom });
-  }
-};
+/* ============================
+   Spiel starten (local)
+   ============================ */
+$('startGame')?.addEventListener('click', () => {
+  if (!currentRoom) return;
+  socket.emit('startGame', { code: currentRoom });
+});
 
-// Countdown vor Spielstart
+/* ============================
+   Spiel starten (single)
+   - Host tippt Namen in ein Textarea (id="singleNames")
+   - je Zeile ein Name
+   - Server sendet einmalig die Rollen nur an den Host (single:roles)
+   ============================ */
+$('startSingle')?.addEventListener('click', () => {
+  if (!currentRoom) return;
+
+  const ta = $('singleNames');
+  const raw = (ta?.value || '').split('\n').map(s => s.trim()).filter(Boolean);
+
+  if (raw.length < 3) {
+    alert('Bitte mindestens 3 Namen eingeben (je Zeile einen).');
+    return;
+  }
+
+  socket.emit('startGameSingle', { code: currentRoom, names: raw });
+});
+
+/* ============================
+   Countdown (beide Modi nutzen das bereits)
+   ============================ */
 socket.on('countdownStart', ({ duration }) => {
-  $('lobby').classList.add('hidden');
-  $('game').classList.remove('hidden');
-  $('countdown').classList.remove('hidden');
-  
+  $('lobby')?.classList.add('hidden');
+  $('game')?.classList.remove('hidden');
+  $('countdown')?.classList.remove('hidden');
+
   let count = duration;
-  $('countdown').textContent = count;
-  
-  const countdownInterval = setInterval(() => {
+  if ($('countdown')) $('countdown').textContent = count;
+
+  const intv = setInterval(() => {
     count--;
-    $('countdown').textContent = count;
-    
+    if ($('countdown')) $('countdown').textContent = count;
     if (count <= 0) {
-      clearInterval(countdownInterval);
-      $('countdown').classList.add('hidden');
+      clearInterval(intv);
+      $('countdown')?.classList.add('hidden');
     }
   }, 1000);
 });
 
-// Rolle/Wort anzeigen
+/* ============================
+   Rollen-Anzeige (local) – wie gehabt
+   ============================ */
 socket.on('yourRole', ({ role, word, note, isHost: hostStatus, gameMode, players }) => {
   isHost = hostStatus;
-  
-  // Secret Reveal vorbereiten
-  $('secretRole').textContent = role;
-  $('secretWord').textContent = word;
-  $('secretNote').textContent = note || '';
-  
-  // Hold-Mechanismus einrichten
+
+  $('secretRole') && ( $('secretRole').textContent = role );
+  $('secretWord') && ( $('secretWord').textContent = word );
+  $('secretNote') && ( $('secretNote').textContent = note || '' );
+
   setupHoldToReveal();
-  
-  // Admin-Panel für Host anzeigen
-  if (isHost) {
-    $('adminPanel').classList.remove('hidden');
-  }
-  
-  // Modus-spezifische Elemente anzeigen
-  if (gameMode === 'ki-bot') {
-    $('ki-bot-game').classList.remove('hidden');
-    $('messages').innerHTML = '<div class="message system">Spiel startet... Bitte warte auf deinen Zug!</div>';
-  } else {
-    $('ki-bot-game').classList.add('hidden');
-  }
-  
-  // Voting-Optionen vorbereichen
-  prepareVotingOptions(players);
+
+  if (isHost) $('adminPanel')?.classList.remove('hidden');
+  else        $('adminPanel')?.classList.add('hidden');
+
+  // Nur Infozeile
+  $('messages') && ( $('messages').innerHTML = '<div class="message system">Rolle zugewiesen – viel Spaß!</div>' );
 });
 
-// Hold-to-Reveal Mechanismus
+/* ============================
+   Rollen-Anzeige (single)
+   Der Server schickt nur dem Host:
+   { roles: [{name, role, word, note}, ...] }
+   Wir zeigen nacheinander an, mit "Weitergeben" (id="passDevice")
+   ============================ */
+let singleRoles = null;
+let singleIndex = 0;
+
+socket.on('single:roles', ({ roles }) => {
+  singleRoles = Array.isArray(roles) ? roles : [];
+  singleIndex = 0;
+
+  $('lobby')?.classList.add('hidden');
+  $('game')?.classList.remove('hidden');
+
+  // Falls du eine eigene Sektion für Single brauchst, hier anzeigen
+  showSingleCard();
+  setupHoldToReveal();
+});
+
+function showSingleCard(){
+  if (!singleRoles || singleIndex >= singleRoles.length) {
+    // fertig
+    $('secretRole') && ( $('secretRole').textContent = 'Fertig!' );
+    $('secretWord') && ( $('secretWord').textContent = 'Alle Rollen wurden gezeigt.' );
+    $('secretNote') && ( $('secretNote').textContent = '' );
+    $('passDevice') && ( $('passDevice').classList.add('hidden') );
+    return;
+  }
+
+  const entry = singleRoles[singleIndex];
+
+  // Reset Ansicht
+  const revealBox = $('secretReveal');
+  if (revealBox) revealBox.classList.remove('active');
+  secretRevealActive = false;
+
+  // Name + leere Rolle, Hinweistext
+  $('secretRole') && ( $('secretRole').textContent = `${entry.name}` );
+  $('secretWord') && ( $('secretWord').textContent = entry.word || '' );
+  $('secretNote') && ( $('secretNote').textContent = entry.note || '' );
+
+  // „Weitergeben“ aktivieren
+  $('passDevice')?.classList.remove('hidden');
+}
+
+$('passDevice')?.addEventListener('click', () => {
+  singleIndex++;
+  showSingleCard();
+});
+
+/* ============================
+   Hold-to-Reveal
+   ============================ */
 function setupHoldToReveal() {
   const holdArea = document.querySelector('.hold-area');
   const secretReveal = $('secretReveal');
+  if (!holdArea || !secretReveal) return;
+
   let holdTimer;
   let isHolding = false;
 
-  // Touch Events für Mobile
-  holdArea.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    startHold();
-  });
-
-  holdArea.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    endHold();
-  });
-
-  holdArea.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-  });
-
-  // Mouse Events für Desktop
-  holdArea.addEventListener('mousedown', startHold);
-  holdArea.addEventListener('mouseup', endHold);
-  holdArea.addEventListener('mouseleave', endHold);
-
-  function startHold() {
+  const startHold = () => {
     if (isHolding) return;
     isHolding = true;
     holdArea.style.background = '#e9ecef';
     holdArea.style.borderColor = '#667eea';
-    
+
     holdTimer = setTimeout(() => {
       secretReveal.classList.add('active');
       secretRevealActive = true;
     }, 500);
-  }
-
-  function endHold() {
+  };
+  const endHold = () => {
     if (!isHolding) return;
     isHolding = false;
     holdArea.style.background = '#f8f9fa';
     holdArea.style.borderColor = '#667eea';
     clearTimeout(holdTimer);
-    
+
     if (secretRevealActive) {
       secretReveal.classList.remove('active');
       secretRevealActive = false;
     }
-  }
+  };
+
+  // Touch
+  holdArea.ontouchstart = (e) => { e.preventDefault(); startHold(); };
+  holdArea.ontouchend   = (e) => { e.preventDefault(); endHold(); };
+  holdArea.ontouchmove  = (e) => { e.preventDefault(); };
+
+  // Mouse
+  holdArea.onmousedown = startHold;
+  holdArea.onmouseup   = endHold;
+  holdArea.onmouseleave= endHold;
 }
 
-// Spieler ist dran (nur KI-Bot Modus)
-socket.on('playerTurn', ({ player, playerId, timeLeft }) => {
-  $('currentPlayer').textContent = `${player} ist dran...`;
-  $('timer').textContent = timeLeft;
-  
-  // Nachricht hinzufügen
-  const message = document.createElement('div');
-  message.className = 'message system current-turn-message';
-  message.textContent = `${player} ist jetzt an der Reihe!`;
-  $('messages').appendChild(message);
-  $('messages').scrollTop = $('messages').scrollHeight;
-});
-
-// Timer Update
-socket.on('timerUpdate', ({ timeLeft }) => {
-  $('timer').textContent = timeLeft;
-  
-  // Farbwechsel bei wenig Zeit
-  if (timeLeft <= 5) {
-    $('timer').style.color = '#ff6b6b';
-    $('timer').style.animation = 'pulse 0.5s infinite';
-  } else if (timeLeft <= 10) {
-    $('timer').style.color = '#ffa94d';
-  } else {
-    $('timer').style.color = '#51cf66';
-  }
-});
-
-// Hinweis anzeigen
-socket.on('hint', ({ from, text, isBot }) => {
-  const message = document.createElement('div');
-  message.className = `message ${isBot ? 'bot' : 'player'}`;
-  message.innerHTML = `<strong>${from}${isBot ? ' 🤖' : ''}:</strong> ${text}`;
-  $('messages').appendChild(message);
-  $('messages').scrollTop = $('messages').scrollHeight;
-});
-
-// Abstimmungsphase starten
-socket.on('votingStarted', ({ players }) => {
-  $('ki-bot-game').classList.add('hidden');
-  $('voting-section').classList.remove('hidden');
-  
-  const votingOptions = $('voting-options');
-  votingOptions.innerHTML = players.map(player => `
-    <div class="vote-option clickable" onclick="castVote('${player.id}')">
-      <strong>${player.name}</strong>${player.isBot ? ' 🤖' : ''}
-    </div>
-  `).join('');
-});
-
-// Stimme abgeben
+/* ============================
+   Voting & allgemeine Spiel-Events (nur local)
+   ============================ */
 window.castVote = function(targetId) {
-  if (currentRoom) {
-    socket.emit('vote', { code: currentRoom, targetId });
-    $('voting-options').innerHTML = '<div class="message system">Deine Stimme wurde abgegeben!</div>';
-  }
+  if (!currentRoom) return;
+  socket.emit('vote', { code: currentRoom, targetId });
+  $('voting-options') && ( $('voting-options').innerHTML = '<div class="message system">Deine Stimme wurde abgegeben!</div>' );
 };
 
-// Abstimmung anzeigen
-socket.on('voteCast', ({ from, targetName, isBot }) => {
+socket.on('votingStarted', ({ players }) => {
+  $('voting-section')?.classList.remove('hidden');
+  const box = $('voting-options');
+  if (box) {
+    box.innerHTML = players.map(p => `
+      <div class="vote-option clickable" onclick="castVote('${p.id}')">
+        <strong>${p.name}</strong>
+      </div>
+    `).join('');
+  }
+});
+
+socket.on('voteCast', ({ from, targetName }) => {
   const message = document.createElement('div');
   message.className = 'message system';
-  message.textContent = `${from}${isBot ? ' 🤖' : ''} stimmt für ${targetName}`;
-  $('messages').appendChild(message);
-  $('messages').scrollTop = $('messages').scrollHeight;
+  message.textContent = `${from} stimmt für ${targetName}`;
+  $('messages')?.appendChild(message);
+  $('messages') && ( $('messages').scrollTop = $('messages').scrollHeight );
 });
 
-// Spielende
-socket.on('gameEnded', ({ imposterEjected, ejectedPlayer, imposter, votes }) => {
-  $('voting-section').classList.add('hidden');
-  $('ki-bot-game').classList.add('hidden');
-  
+socket.on('gameEnded', ({ imposterEjected, ejectedPlayer, imposter }) => {
+  $('voting-section')?.classList.add('hidden');
+
   const resultDiv = $('game-result');
-  resultDiv.classList.remove('hidden');
-  
-  if (imposterEjected) {
-    resultDiv.innerHTML = `
-      <div class="game-result result-win">
-        <div class="result-icon">🎉</div>
-        <h2>Crew gewinnt!</h2>
-        <p>Der Imposter <strong>${imposter}</strong> wurde enttarnt!</p>
-        <p><strong>${ejectedPlayer}</strong> wurde aus dem Spiel geworfen.</p>
-      </div>
-    `;
-  } else {
-    resultDiv.innerHTML = `
-      <div class="game-result result-lose">
-        <div class="result-icon">💀</div>
-        <h2>Imposter gewinnt!</h2>
-        <p>Der Imposter <strong>${imposter}</strong> hat sich versteckt!</p>
-        <p>Die Crew hat <strong>${ejectedPlayer}</strong> fälschlicherweise geworfen.</p>
-      </div>
-    `;
-  }
-  
-  // Nächste Runde Button für Host anzeigen
-  if (isHost) {
-    $('nextRound').classList.remove('hidden');
-  }
+  resultDiv?.classList.remove('hidden');
+
+  if (!resultDiv) return;
+  resultDiv.innerHTML = imposterEjected
+    ? `<div class="game-result result-win"><div class="result-icon">🎉</div><h2>Crew gewinnt!</h2><p>Der Imposter <strong>${imposter}</strong> wurde enttarnt!</p><p><strong>${ejectedPlayer}</strong> wurde aus dem Spiel geworfen.</p></div>`
+    : `<div class="game-result result-lose"><div class="result-icon">💀</div><h2>Imposter gewinnt!</h2><p>Der Imposter <strong>${imposter}</strong> hat sich versteckt!</p><p>Die Crew hat <strong>${ejectedPlayer}</strong> fälschlicherweise geworfen.</p></div>`;
+
+  if (isHost) $('nextRound')?.classList.remove('hidden');
 });
 
-// Bestätigungsdialog anzeigen
-window.showConfirmation = function() {
-  $('confirmationDialog').classList.remove('hidden');
-};
+$('nextRound')?.addEventListener('click', () => {
+  if (!currentRoom) return;
+  socket.emit('nextRound', { code: currentRoom });
+  $('nextRound')?.classList.add('hidden');
+  $('game-result')?.classList.add('hidden');
+});
 
-// Bestätigungsdialog schließen
-window.hideConfirmation = function() {
-  $('confirmationDialog').classList.add('hidden');
-};
-
-// Spiel wirklich verlassen
-window.confirmLeave = function() {
-  if (currentRoom) {
-    socket.emit('leaveGame', { code: currentRoom });
-  }
-  // C7: localStorage aufräumen, damit C6 nicht erneut joint
-  localStorage.removeItem('roomCode');
-  localStorage.removeItem('playerName');
-
-  stopHeartbeat(); // ← HIER stoppen
-  hideConfirmation();
-  showStartScreen();
-};
-
-
-// Nächste Runde starten
-window.nextRound = function() {
-  if (currentRoom) {
-    socket.emit('nextRound', { code: currentRoom });
-    $('nextRound').classList.add('hidden');
-    $('game-result').classList.add('hidden');
-  }
-};
-
-// Voting-Optionen vorbereiten
-function prepareVotingOptions(players) {
-  // Wird für spätere Abstimmung vorbereitet
-}
-
-// Spiel-Events
 socket.on('gameStarted', () => {
-  $('messages').innerHTML = '<div class="message system">🎮 Spiel gestartet! Die Rollen wurden verteilt.</div>';
+  $('messages') && ( $('messages').innerHTML = '<div class="message system">🎮 Spiel gestartet! Die Rollen wurden verteilt.</div>' );
 });
 
 socket.on('roundRestarted', () => {
-  $('game-result').classList.add('hidden');
-  $('voting-section').classList.add('hidden');
-  $('messages').innerHTML = '<div class="message system">🔄 Neue Runde! Neue Wörter wurden verteilt.</div>';
+  $('game-result')?.classList.add('hidden');
+  $('voting-section')?.classList.add('hidden');
+  $('messages') && ( $('messages').innerHTML = '<div class="message system">🔄 Neue Runde! Neue Wörter wurden verteilt.</div>' );
 });
 
-socket.on('playerLeft', ({ playerId, playerName }) => {
+socket.on('playerLeft', ({ playerName }) => {
   const message = document.createElement('div');
   message.className = 'message system';
   message.textContent = `${playerName} hat das Spiel verlassen.`;
-  $('messages').appendChild(message);
+  $('messages')?.appendChild(message);
 });
 
-// Neuer Host erkannt
+/* ============================
+   Hostwechsel / Fehler
+   ============================ */
 socket.on('youAreHost', () => {
   isHost = true;
   $('adminPanel')?.classList.remove('hidden');
 
   const note = document.createElement('div');
   note.className = 'message system';
-  note.innerHTML = '👑 Du bist jetzt der <strong>Host</strong>. Du kannst die nächste Runde starten.';
+  note.innerHTML = '👑 Du bist jetzt der <strong>Host</strong>.';
   $('messages')?.appendChild(note);
-  $('messages')?.scrollTo(0, $('messages').scrollHeight);
+  $('messages') && ( $('messages').scrollTo(0, $('messages').scrollHeight) );
 });
 
+socket.on('errorMsg', (msg) => alert(msg));
 
-
-socket.on('errorMsg', (msg) => {
-  alert(msg);
-});
-
-// Verbindungs-IDs speichern
+/* ============================
+   Verbindung
+   ============================ */
 socket.on('connect', () => {
   myId = socket.id;
   console.log('Verbunden mit ID:', myId);
@@ -489,88 +478,55 @@ socket.on('disconnect', () => {
   stopHeartbeat();
 });
 
-
-// C6: Auto-Rejoin nach Refresh
+/* ============================
+   Auto-Rejoin (nur sinnvoll für local; tut niemandem weh)
+   ============================ */
 (() => {
   const savedCode = localStorage.getItem('roomCode');
-  const savedName =
-    localStorage.getItem('playerName') ||
-    $('name')?.value?.trim() ||
-    'Gast';
-
+  const savedName = localStorage.getItem('playerName') || $('name')?.value?.trim() || 'Gast';
   if (!savedCode) return;
 
-  // 🔥 WICHTIG: Raum zuerst lokal setzen, damit lobbyUpdate nicht weggefiltert wird
   currentRoom = savedCode;
 
-  // UI optimistisch auf Lobby schalten
   $('start')?.classList.add('hidden');
   $('lobby')?.classList.remove('hidden');
-
   if ($('roomCode')) $('roomCode').textContent = savedCode;
 
-  // Copy-Button aktivieren & Zustand resetten (falls vorhanden)
-  const copyBtn = document.getElementById('copyRoomCode');
-  if (copyBtn) {
-    copyBtn.disabled = !savedCode;
-    copyBtn.classList.remove('copied');
-  }
+  const copyBtn = $('copyRoomCode');
+  if (copyBtn) { copyBtn.disabled = !savedCode; copyBtn.classList.remove('copied'); }
 
-  $('gameMode') && ($('gameMode').textContent = 'Lokales Spiel'); // wird vom nächsten lobbyUpdate überschrieben
+  $('gameMode') && ( $('gameMode').textContent = 'Lokales Spiel' );
   $('loading')?.classList.remove('hidden');
 
-  // Erneut dem Raum beitreten
   socket.emit('joinRoom', { code: savedCode, name: savedName }, (res) => {
     if (res?.error) {
       console.warn('Auto-Rejoin fehlgeschlagen:', res.error);
       localStorage.removeItem('roomCode');
       $('lobby')?.classList.add('hidden');
       $('start')?.classList.remove('hidden');
-      currentRoom = null; // sauber zurücksetzen
+      currentRoom = null;
       return;
     }
     startHeartbeat();
   });
 })();
 
-
-
-// Verhindere Textauswahl außerhalb von Input-Feldern
-document.addEventListener('mousedown', (e) => {
-  const tag = e.target.tagName;
-  const inSelectable = e.target.closest('.selectable');
-  const isFormField =
-    tag === 'INPUT' ||
-    tag === 'SELECT' ||
-    tag === 'TEXTAREA' ||
-    e.target.isContentEditable;
-  const isClickTarget = !!e.target.closest('button, .clickable, a, [role="button"]');
-
-  // Nur blockieren, wenn es kein Formularfeld, kein Click-Target und kein .selectable-Text ist
-  if (!isFormField && !isClickTarget && !inSelectable) {
-    e.preventDefault();
-  }
-});
-
-
-
-// Kopieren-Button: Raumcode markieren & kopieren
-// Kopieren-Button: Raumcode direkt in die Zwischenablage (ohne Markieren)
+/* ============================
+   Kopieren-Button (Raumcode)
+   ============================ */
 (function setupCopyRoomCode(){
-  const btn = document.getElementById('copyRoomCode');
-  const codeEl = document.getElementById('roomCode');
+  const btn = $('copyRoomCode');
+  const codeEl = $('roomCode');
   if (!btn || !codeEl) return;
 
   btn.addEventListener('click', async () => {
     const text = (codeEl.textContent || '').trim();
     let ok = false;
 
-    // 1) Moderne Clipboard API
     try {
       await navigator.clipboard.writeText(text);
       ok = true;
     } catch {
-      // 2) Fallback: temporäres Textarea
       try {
         const ta = document.createElement('textarea');
         ta.value = text;
@@ -590,12 +546,10 @@ document.addEventListener('mousedown', (e) => {
   });
 
   function feedback(success){
-    // Icon zu Häkchen wechseln + Aria-Label anpassen
     btn.classList.add('copied');
     btn.setAttribute('aria-label', success ? 'Kopiert!' : 'Kopieren fehlgeschlagen');
     btn.title = success ? 'Kopiert!' : 'Kopieren fehlgeschlagen';
 
-    // Textauswahl sicher entfernen (falls vom Fallback selektiert)
     const sel = window.getSelection?.();
     if (sel?.removeAllRanges) sel.removeAllRanges();
 
@@ -607,18 +561,47 @@ document.addEventListener('mousedown', (e) => {
   }
 })();
 
+/* ============================
+   Textauswahl-Handling (so liberal wie möglich)
+   ============================ */
+document.addEventListener('mousedown', (e) => {
+  const tag = e.target.tagName;
+  const inSelectable = e.target.closest('.selectable');
+  const isFormField =
+    tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || e.target.isContentEditable;
+  const isClickTarget = !!e.target.closest('button, .clickable, a, [role="button"]');
 
-// Auswahl (Textmarkierung) entfernen, wenn außerhalb von .selectable geklickt wird
+  if (!isFormField && !isClickTarget && !inSelectable) {
+    e.preventDefault();
+  }
+});
+
+// Auswahl wirklich nur dann entfernen, wenn man „frei“ klickt
 document.addEventListener('click', (e) => {
   const tag = e.target.tagName;
   const inSelectable = e.target.closest('.selectable');
-  const isFormField = (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || e.target.isContentEditable);
+  const isFormField =
+    tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || e.target.isContentEditable;
   const isClickTarget = !!e.target.closest('button, .clickable, a, [role="button"]');
 
-  // Nur wenn wir NICHT in selektierbarem Text / Formularfeld / Button/Link sind → Auswahl entfernen
   if (!inSelectable && !isFormField && !isClickTarget) {
     const sel = window.getSelection?.();
     if (sel?.removeAllRanges) sel.removeAllRanges();
   }
 });
+
+/* ============================
+   Verlassen
+   ============================ */
+window.showConfirmation = function(){ $('confirmationDialog')?.classList.remove('hidden'); };
+window.hideConfirmation = function(){ $('confirmationDialog')?.classList.add('hidden'); };
+window.confirmLeave = function(){
+  if (currentRoom) socket.emit('leaveGame', { code: currentRoom });
+  localStorage.removeItem('roomCode');
+  localStorage.removeItem('playerName');
+  stopHeartbeat();
+  hideConfirmation();
+  showStartScreen();
+};
+
 
