@@ -213,20 +213,20 @@
           <p>Mit Freunden über Codes verbinden (mehrere Geräte)</p>
         </div>
         <div class="mode-option single" onclick="selectMode('single', event)">
-          <h3>📱 Spiel auf einem Gerät</h3>
-          <p>Namen eingeben, Gerät weitergeben, Rollen nacheinander zeigen</p>
-        </div>
+  <h3>📱 Spiel auf einem Gerät</h3>
+  <p>Namen eingeben, Gerät weitergeben, Rollen nacheinander zeigen</p>
+</div>
       </div>
 
+<!-- Ein-Gerät: Namen erfassen (IDs passend zur client.js) -->
 <div id="sd-setup" class="hidden">
   <h3>Spielernamen (je Zeile ein Name)</h3>
   <div class="input-group">
-    <textarea id="singleNames" rows="8" placeholder="Anna
-Ben
-Chris"></textarea>
+    <textarea id="singleNames" rows="6" placeholder="z.B.&#10;Anna&#10;Ben&#10;Chris"></textarea>
   </div>
   <button id="startSingle" class="secondary">Spiel starten (ein Gerät)</button>
 </div>
+
 
 
       <!-- Online: Name + Raum erstellen -->
@@ -278,10 +278,11 @@ Chris"></textarea>
 
 
       <div id="sd-flow" class="game-info hidden">
-        <h3>📱 Weitergeben</h3>
-        <p>Nächster Spieler: <strong id="sd-current-name">–</strong></p>
-        <button id="passDevice" style="margin-top:10px;">Weitergeben ▶</button>
-      </div>
+  <h3>📱 Weitergeben</h3>
+  <p>Nächster Spieler: <strong id="sd-current-name">–</strong></p>
+  <button id="passDevice" style="margin-top:10px;">Weitergeben ▶</button>
+</div>
+
 
       <div class="role-display">
         <h2>Deine Rolle wird geheim gehalten!</h2>
