@@ -14,6 +14,7 @@ app.use(express.static("public"));
    Spiel-Daten
    ============================== */
 const WORD_PAIRS = [
+  // [Crew-Wort, Imposter-Wort]
   ["Pizza", "Italien"],
   ["Hund", "Haustier"],
   ["Auto", "Verkehr"],
@@ -39,7 +40,7 @@ const WORD_PAIRS = [
 /* ==============================
    Server-Status & Konstanten
    ============================== */
-const rooms = new Map();           // code -> room
+const rooms = new Map();            // code -> room
 const disconnectTimers = new Map(); // socketId -> timeout
 
 const GRACE_MS = 20000;       // 20s Gnadenfrist zum Rejoin
@@ -70,7 +71,6 @@ function ensureUniqueName(room, desiredName, excludeSocketId = null) {
   if (!taken.has(base.toLowerCase())) return base;
 
   let i = 2;
-  // Gast, Gast (2), Gast (3), …
   while (true) {
     const candidate = `${base} (${i})`;
     if (!taken.has(candidate.toLowerCase())) return candidate;
@@ -270,7 +270,6 @@ io.on("connection", (socket) => {
     room.votes.clear();
 
     io.to(code).emit("countdownStart", { duration: 5 });
-
     setTimeout(() => startNewRoundLocal(code), 5000);
   });
 
@@ -294,13 +293,13 @@ io.on("connection", (socket) => {
     }, 5000);
   });
 
-  /* -------- Abstimmungsstimme abgeben (local) -------- */
+  /* -------- Abstimmung (local) -------- */
   socket.on("vote", ({ code, targetId }) => {
     const room = rooms.get(code);
     if (!room || !room.roundActive) return;
     if (room.gameMode !== "local") return;
-
     if (!room.players.has(socket.id)) return;
+
     room.votes.set(socket.id, targetId);
 
     io.to(code).emit("voteCast", {
@@ -315,7 +314,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  /* -------- Single-Device: Rollen erzeugen und nur an Host schicken -------- */
+  /* -------- Single-Device: Rollen erzeugen (nur an Host) -------- */
   socket.on("startGameSingle", ({ code, names }) => {
     const room = rooms.get(code);
     if (!room) return;
@@ -324,11 +323,9 @@ io.on("connection", (socket) => {
     if (socket.id !== room.hostId)
       return io.to(socket.id).emit("errorMsg", "Nur der Admin kann starten.");
 
-    // Namen säubern (leer entfernen, trimmen)
     const cleanNames = Array.isArray(names)
       ? names.map(n => String(n || "").trim()).filter(Boolean)
       : [];
-
     if (cleanNames.length < 3)
       return io.to(socket.id).emit("errorMsg", "Mindestens 3 Namen nötig.");
 
@@ -347,7 +344,6 @@ io.on("connection", (socket) => {
       };
     });
 
-    // Nur an den Host (ein Gerät zeigt nacheinander an)
     io.to(socket.id).emit("single:roles", { roles });
   });
 
@@ -376,7 +372,7 @@ io.on("connection", (socket) => {
     if (socket.id === room.hostId) {
       const nextHostId = Array.from(room.players.keys())[0];
       room.hostId = nextHostId;
-      io.to(nextHostId).emit("youAreHost");
+      if (nextHostId) io.to(nextHostId).emit("youAreHost");
     }
 
     io.to(code).emit("lobbyUpdate", publicState(code));
@@ -407,7 +403,7 @@ io.on("connection", (socket) => {
         if (socket.id === room.hostId) {
           const nextHostId = Array.from(room.players.keys())[0];
           room.hostId = nextHostId;
-          io.to(nextHostId).emit("youAreHost");
+          if (nextHostId) io.to(nextHostId).emit("youAreHost");
         }
 
         io.to(code).emit("lobbyUpdate", publicState(code));
@@ -458,6 +454,11 @@ io.on("connection", (socket) => {
       players: publicPlayers(code),
       roundStarted: true
     });
+
+    // (Optional) Wenn du eine Timer-/Hint-Logik willst, könntest du hier eine timer-Phase starten
+    // und danach io.to(code).emit('votingStarted', { players: publicPlayers(code) }) senden.
+    // Fürs Basis-Setup lassen wir die Runde ohne Auto-Hints und starten die Voting-Phase serverseitig
+    // nur, wenn du einen Trigger einbaust.
   }
 
   function endVotingPhaseLocal(code) {
