@@ -26,6 +26,9 @@ function stopHeartbeat() {
   hbInterval = null;
 }
 
+/* ============================
+   Modus-Auswahl
+   ============================ */
 window.selectMode = function(mode, ev) {
   const wasSame = (currentGameMode === mode);
 
@@ -37,11 +40,11 @@ window.selectMode = function(mode, ev) {
   // 2) Gleiches Kachel erneut → abwählen und Startbildschirm zeigen
   if (wasSame) {
     currentGameMode = null;
-    document.getElementById('start')?.classList.remove('hidden');
-    document.getElementById('lobby')?.classList.add('hidden');
-    document.getElementById('game')?.classList.add('hidden');
-    document.getElementById('sd-setup')?.classList.add('hidden');
-    document.getElementById('sd-flow')?.classList.add('hidden');
+    $('start')?.classList.remove('hidden');
+    $('lobby')?.classList.add('hidden');
+    $('game')?.classList.add('hidden');
+    $('sd-setup')?.classList.add('hidden');
+    $('sd-flow')?.classList.add('hidden');
     return;
   }
 
@@ -53,20 +56,18 @@ window.selectMode = function(mode, ev) {
   // 4) Sichtbarkeit je Modus
   if (mode === 'local') {
     // Mehrgeräte/Online: auf Start bleiben; Nutzer erstellt/ joined selbst
-    document.getElementById('start')?.classList.remove('hidden');
-    document.getElementById('sd-setup')?.classList.add('hidden');
-    document.getElementById('sd-flow')?.classList.add('hidden');
+    $('start')?.classList.remove('hidden');
+    $('sd-setup')?.classList.add('hidden');
+    $('sd-flow')?.classList.add('hidden');
   } else if (mode === 'single') {
     // Ein Handy: eigenes Setup anzeigen, NICHT die Lobby
-    document.getElementById('start')?.classList.add('hidden');
-    document.getElementById('lobby')?.classList.add('hidden');
-    document.getElementById('game')?.classList.add('hidden');
-    document.getElementById('sd-setup')?.classList.remove('hidden');
-    document.getElementById('sd-flow')?.classList.add('hidden');
+    $('start')?.classList.add('hidden');
+    $('lobby')?.classList.add('hidden');
+    $('game')?.classList.add('hidden');
+    $('sd-setup')?.classList.remove('hidden');
+    $('sd-flow')?.classList.add('hidden');
   }
 };
-
-
 
 /* ============================
    Startscreen / Screens
@@ -123,8 +124,8 @@ $('createRoom')?.addEventListener('click', () => {
 
     // UI für Modi
     if (currentGameMode === 'single') {
-      $('joinBlock')?.classList.add('hidden');  // Bereich „Raum beitreten“ ausblenden
-      $('single-setup')?.classList.remove('hidden');
+      $('joinBlock')?.classList.add('hidden');   // Bereich „Raum beitreten“ ausblenden
+      $('sd-setup')?.classList.remove('hidden'); // Korrekt: sd-setup einblenden
       $('startSingle') && ( $('startSingle').style.display = '' );
       $('startGame') && ( $('startGame').style.display = 'none' );
     } else {
@@ -181,7 +182,6 @@ $('joinRoom')?.addEventListener('click', () => {
   });
 });
 
-
 /* ============================
    Lobby-Updates
    ============================ */
@@ -196,7 +196,7 @@ socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers, hostId }) => {
   // Spielmodus beschriften
   $('gameMode') && ( $('gameMode').textContent = (gameMode === 'single') ? 'Ein Handy' : 'Lokales Spiel' );
 
-  // Liste rendern (bei single gibt es formal nur den Host – Anzeige ist ok)
+  // Liste rendern
   if ($('players')) {
     $('players').innerHTML = players.map(p => {
       const isHostPlayer = p.id === hostId;
@@ -216,26 +216,26 @@ socket.on('lobbyUpdate', ({ code, players, gameMode, maxPlayers, hostId }) => {
     }).join('');
   }
 
-const startBtn   = $('startGame');   // für local
-const singleBtn  = $('startSingle'); // für single
-const minPlayers = 3;
+  // Buttons abhängig vom Modus
+  const startBtn   = $('startGame');   // local
+  const singleBtn  = $('startSingle'); // single
+  const minPlayers = 3;
 
-if (gameMode === 'local') {
-  if (startBtn) startBtn.style.display = (isHost && players.length >= minPlayers) ? '' : 'none';
-  if (singleBtn) singleBtn.style.display = 'none';
-} else {
-  if (singleBtn) singleBtn.style.display = isHost ? '' : 'none';
-  if (startBtn)  startBtn.style.display  = 'none';
-}
+  if (gameMode === 'local') {
+    if (startBtn) startBtn.style.display = (isHost && players.length >= minPlayers) ? '' : 'none';
+    if (singleBtn) singleBtn.style.display = 'none';
+  } else {
+    if (singleBtn) singleBtn.style.display = isHost ? '' : 'none';
+    if (startBtn)  startBtn.style.display  = 'none';
+  }
 
-// Loading-Indicator nur im local-Modus
-if (gameMode === 'local') {
-  if (players.length < minPlayers) $('loading')?.classList.remove('hidden');
-  else $('loading')?.classList.add('hidden');
-} else {
-  $('loading')?.classList.add('hidden');
-}
-
+  // Loading-Indicator nur im local-Modus
+  if (gameMode === 'local') {
+    if (players.length < minPlayers) $('loading')?.classList.remove('hidden');
+    else $('loading')?.classList.add('hidden');
+  } else {
+    $('loading')?.classList.add('hidden');
+  }
 });
 
 /* ============================
@@ -267,7 +267,7 @@ $('startSingle')?.addEventListener('click', () => {
 });
 
 /* ============================
-   Countdown (beide Modi nutzen das bereits)
+   Countdown
    ============================ */
 socket.on('countdownStart', ({ duration }) => {
   $('lobby')?.classList.add('hidden');
@@ -288,9 +288,9 @@ socket.on('countdownStart', ({ duration }) => {
 });
 
 /* ============================
-   Rollen-Anzeige (local) – wie gehabt
+   Rollen-Anzeige (local)
    ============================ */
-socket.on('yourRole', ({ role, word, note, isHost: hostStatus, gameMode, players }) => {
+socket.on('yourRole', ({ role, word, note, isHost: hostStatus }) => {
   isHost = hostStatus;
 
   $('secretRole') && ( $('secretRole').textContent = role );
@@ -302,13 +302,12 @@ socket.on('yourRole', ({ role, word, note, isHost: hostStatus, gameMode, players
   if (isHost) $('adminPanel')?.classList.remove('hidden');
   else        $('adminPanel')?.classList.add('hidden');
 
-  // Nur Infozeile
   $('messages') && ( $('messages').innerHTML = '<div class="message system">Rolle zugewiesen – viel Spaß!</div>' );
 });
 
 /* ============================
    Rollen-Anzeige (single)
-   Der Server schickt nur dem Host:
+   Server sendet nur dem Host:
    { roles: [{name, role, word, note}, ...] }
    Wir zeigen nacheinander an, mit "Weitergeben" (id="passDevice")
    ============================ */
@@ -322,7 +321,9 @@ socket.on('single:roles', ({ roles }) => {
   $('lobby')?.classList.add('hidden');
   $('game')?.classList.remove('hidden');
 
-  // Falls du eine eigene Sektion für Single brauchst, hier anzeigen
+  // Ein-Gerät-Fluss sichtbar machen
+  $('sd-flow')?.classList.remove('hidden');
+
   showSingleCard();
   setupHoldToReveal();
 });
@@ -330,6 +331,7 @@ socket.on('single:roles', ({ roles }) => {
 function showSingleCard(){
   if (!singleRoles || singleIndex >= singleRoles.length) {
     // fertig
+    $('sd-current-name') && ( $('sd-current-name').textContent = '–' );
     $('secretRole') && ( $('secretRole').textContent = 'Fertig!' );
     $('secretWord') && ( $('secretWord').textContent = 'Alle Rollen wurden gezeigt.' );
     $('secretNote') && ( $('secretNote').textContent = '' );
@@ -344,7 +346,10 @@ function showSingleCard(){
   if (revealBox) revealBox.classList.remove('active');
   secretRevealActive = false;
 
-  // Name + leere Rolle, Hinweistext
+  // Banner: aktueller Spieler
+  $('sd-current-name') && ( $('sd-current-name').textContent = entry.name );
+
+  // Overlay: Rolle/Wort für diesen Spieler (erst beim Halten sichtbar)
   $('secretRole') && ( $('secretRole').textContent = `${entry.name}` );
   $('secretWord') && ( $('secretWord').textContent = entry.word || '' );
   $('secretNote') && ( $('secretNote').textContent = entry.note || '' );
@@ -447,11 +452,17 @@ socket.on('gameEnded', ({ imposterEjected, ejectedPlayer, imposter }) => {
   if (isHost) $('nextRound')?.classList.remove('hidden');
 });
 
-$('nextRound')?.addEventListener('click', () => {
+/* Admin-Button in Index hat onclick="nextRound()" */
+window.nextRound = function() {
   if (!currentRoom) return;
   socket.emit('nextRound', { code: currentRoom });
   $('nextRound')?.classList.add('hidden');
   $('game-result')?.classList.add('hidden');
+};
+
+/* Zusätzlich: Listener auf den separaten Button am Rundenende */
+$('nextRound')?.addEventListener('click', () => {
+  window.nextRound();
 });
 
 socket.on('gameStarted', () => {
@@ -624,5 +635,3 @@ window.confirmLeave = function(){
   hideConfirmation();
   showStartScreen();
 };
-
-
