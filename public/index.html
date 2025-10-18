@@ -73,10 +73,10 @@
       background:linear-gradient(135deg,#fff3cd 0%,#ffecb5 100%); padding:20px; border-radius:15px; margin:20px 0; border-left:5px solid #ffc107;
     }
 
-    input,select,button{
+    input,select,button,textarea{
       width:100%; padding:15px; border:2px solid #e1e5e9; border-radius:10px; font-size:16px; margin:5px 0; transition:all .3s ease;
     }
-    input:focus,select:focus{ border-color:#667eea; box-shadow:0 0 0 3px rgba(102,126,234,.1); outline:none; }
+    input:focus,select:focus,textarea:focus{ border-color:#667eea; box-shadow:0 0 0 3px rgba(102,126,234,.1); outline:none; }
     button{
       background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:#fff; border:none; cursor:pointer; font-weight:bold; transition:all .3s ease;
     }
@@ -191,6 +191,28 @@
     .sd-list li .nm{ font-weight:600; }
     .sd-list li button{ width:auto; padding:8px 10px; margin-left:10px; }
 
+    /* Loading-Dots (fehlten vorher) */
+    .loading-dots { display:inline-block; margin-left:6px; }
+    .loading-dots::after { content: ''; animation: dots 1.5s steps(5,end) infinite; }
+    @keyframes dots {
+      0%, 20% { content: '.'; }
+      40% { content: '..'; }
+      60%, 100% { content: '...'; }
+    }
+
+    /* Optional: Log-Messages Box */
+    .chat-messages {
+      max-height: 260px;
+      overflow-y: auto;
+      border: 2px solid #e1e5e9;
+      border-radius: 10px;
+      padding: 15px;
+      margin: 20px 0;
+      background: #f8f9fa;
+    }
+    .message { padding: 10px; margin: 5px 0; border-radius: 10px; }
+    .message.system { background: #fff3cd; border-left: 4px solid #ffc107; text-align: left; }
+
     @media (max-width:768px){
       .mode-select{ grid-template-columns:1fr; }
       .voting-options{ grid-template-columns:1fr; }
@@ -213,21 +235,19 @@
           <p>Mit Freunden über Codes verbinden (mehrere Geräte)</p>
         </div>
         <div class="mode-option single" onclick="selectMode('single', event)">
-  <h3>📱 Spiel auf einem Gerät</h3>
-  <p>Namen eingeben, Gerät weitergeben, Rollen nacheinander zeigen</p>
-</div>
+          <h3>📱 Spiel auf einem Gerät</h3>
+          <p>Namen eingeben, Gerät weitergeben, Rollen nacheinander zeigen</p>
+        </div>
       </div>
 
-<!-- Ein-Gerät: Namen erfassen (IDs passend zur client.js) -->
-<div id="sd-setup" class="hidden">
-  <h3>Spielernamen (je Zeile ein Name)</h3>
-  <div class="input-group">
-    <textarea id="singleNames" rows="6" placeholder="z.B.&#10;Anna&#10;Ben&#10;Chris"></textarea>
-  </div>
-  <button id="startSingle" class="secondary">Spiel starten (ein Gerät)</button>
-</div>
-
-
+      <!-- Ein-Gerät: Namen erfassen (IDs passend zur client.js) -->
+      <div id="sd-setup" class="hidden">
+        <h3>Spielernamen (je Zeile ein Name)</h3>
+        <div class="input-group">
+          <textarea id="singleNames" rows="6" placeholder="z.B.&#10;Anna&#10;Ben&#10;Chris"></textarea>
+        </div>
+        <button id="startSingle" class="secondary">Spiel starten (ein Gerät)</button>
+      </div>
 
       <!-- Online: Name + Raum erstellen -->
       <div class="input-group">
@@ -276,13 +296,12 @@
     <div id="game" class="card hidden">
       <button class="danger" onclick="showConfirmation()" style="margin-bottom:20px;">❌ Spiel verlassen</button>
 
-
+      <!-- Ein-Gerät: Weitergeben-Flow -->
       <div id="sd-flow" class="game-info hidden">
-  <h3>📱 Weitergeben</h3>
-  <p>Nächster Spieler: <strong id="sd-current-name">–</strong></p>
-  <button id="passDevice" style="margin-top:10px;">Weitergeben ▶</button>
-</div>
-
+        <h3>📱 Weitergeben</h3>
+        <p>Nächster Spieler: <strong id="sd-current-name">–</strong></p>
+        <button id="passDevice" style="margin-top:10px;">Weitergeben ▶</button>
+      </div>
 
       <div class="role-display">
         <h2>Deine Rolle wird geheim gehalten!</h2>
@@ -292,6 +311,9 @@
           <p style="color:#666; font-size:.9em;">Halte deinen Finger/Daumen auf diesem Bereich, um dein Geheimnis zu enthüllen</p>
         </div>
       </div>
+
+      <!-- Optional: System-/Spiel-Meldungen sichtbar machen -->
+      <div id="messages" class="chat-messages"></div>
 
       <!-- Admin Panel (nur Online) -->
       <div id="adminPanel" class="admin-panel hidden">
